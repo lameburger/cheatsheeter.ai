@@ -1,0 +1,103 @@
+:root {
+    --bg: black; /* Dark mode background */
+    --text: #F4F3F7; /* Dark mode text */
+    --box-bg: white; /* Box background for dark mode */
+    --border: #444; /* Dark mode border */
+    --primary: #32CD32; /* Primary accent color */
+    --dot-color: rgba(255, 255, 255, 0.1); /* Dark mode dot color */
+    --dot-hover-color: rgba(255, 255, 255, 0.3); /* Dark mode dot hover color */
+}
+
+[data-theme="light"] {
+    --bg: white; /* Light mode background */
+    --text: black; /* Light mode text */
+    --box-bg: black; /* Box background for light mode */
+    --border: #ccc; /* Light mode border */
+    --primary: #32CD32; /* Primary accent color */
+    --dot-color: rgba(0, 0, 0, 0.1); /* Light mode dot color */
+    --dot-hover-color: rgba(0, 0, 0, 0.3); /* Light mode dot hover color */
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+button {
+    background-color: var(--primary);
+    color: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 15px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+button:hover {
+    background-color: #28a745; /* Slightly darker green on hover */
+}
+
+input, textarea {
+    border: 1px solid var(--border);
+    background-color: var(--box-bg);
+    color: var(--text);
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+}
+
+input:focus, textarea:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+/* Dots Background */
+.dots-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding-left: 15%;
+    padding-right: 15%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(25px, 1fr));
+    grid-auto-rows: 25px;
+    gap: 0;
+    z-index: -1;
+}
+
+/* Individual Dots */
+.dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--dot-color);
+    border-radius: 50%;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+/* Animated Dots */
+.dot.animated {
+    background: linear-gradient(to right, #32a852, #4caf50);
+    transform: scale(1.5);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1.5);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.8);
+        opacity: 0.6;
+    }
+}

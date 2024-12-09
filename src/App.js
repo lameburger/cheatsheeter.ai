@@ -1,25 +1,78 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import HomePage from "./pages/HomePage";
+import AccountPage from "./pages/AccountPage";
+import "./styles/global.css";
+import "./styles/theme.css";
+import { auth } from "./firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { createUserDocument } from "./services/userService";
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+    const [theme, setTheme] = useState("dark");
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // Theme toggle function
+    const toggleTheme = () => {
+        const newTheme = theme === "light" ? "dark" : "light";
+        setTheme(newTheme);
+        document.documentElement.setAttribute("data-theme", newTheme);
+    };
+
+    // Track authentication state and create user document
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                setUser(currentUser);
+                try {
+                    await createUserDocument(currentUser);
+                } catch (error) {
+                    console.error("Error creating user document:", error);
+                }
+            } else {
+                setUser(null);
+            }
+            setLoading(false); // Set loading to false after auth state is determined
+        });
+
+        return () => unsubscribe(); // Cleanup on component unmount
+    }, []);
+
+    if (loading) {
+        return (
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "100vh",
+                    fontFamily: "'JetBrains Mono', monospace",
+                }}
+            >
+                <h2>Loading...</h2>
+            </div>
+        );
+    }
+
+    return (
+        <Router>
+            <Routes>
+                <Route
+                    path="/"
+                    element={
+                        <HomePage toggleTheme={toggleTheme} isDarkMode={theme === "dark"} user={user} />
+                    }
+                />
+                <Route
+                    path="/account"
+                    element={
+                        <AccountPage user={user} isDarkMode={theme === "dark"} toggleTheme={toggleTheme} />
+                    }
+                />
+            </Routes>
+        </Router>
+    );
 }
 
 export default App;
