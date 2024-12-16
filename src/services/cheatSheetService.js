@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { extractTextFromPdfByPage } from "./pdfParser";
 import { marked } from "marked";
 import DOMPurify from "dompurify"; // Import DOMPurify for safe HTML sanitization
+import uploadCheatSheet from './uploadCheatSheet';
 
 const openai = new OpenAI({
     apiKey: process.env.REACT_APP_OPENAI_API_KEY,
@@ -37,7 +38,8 @@ const calculateDynamicLayout = (totalTextLength) => {
     const columnWidth = Math.max(40, COLUMN_WIDTH - Math.floor(totalTextLength / 3000));
 
     // Calculate the number of columns that fit the page width
-    const numColumns = Math.floor((PAGE_WIDTH - padding * 2) / columnWidth);
+    // const numColumns = Math.floor((PAGE_WIDTH - padding * 2) / columnWidth);
+    const numColumns = 6;
 
     // Max lines per column adjusted for full height utilization
     const maxLinesPerColumn = Math.floor((PAGE_HEIGHT - padding * 2) / lineHeight) * 3;
@@ -45,18 +47,20 @@ const calculateDynamicLayout = (totalTextLength) => {
     return { numColumns, columnWidth, lineHeight, fontSize, maxLinesPerColumn };
 };
 
-const analyzePages = async (pages, maxWordsPerPage = 480) => {
+const analyzePages = async (pages, promptText, maxWordsPerPage = 2000) => {
     const prompt = `
 You are an expert cheat sheet designer tasked with creating a structured and visually appealing cheat sheet.
 
 ### Task:
-1. Analyze the provided content.
-2. Identify key sections, topics, and structure for the cheat sheet.
+1. Analyze the content.
+2. Identify key sections, topics, and structure for the cheat sheet (be sure to keep original content from what you were given).
 3. Recommend a word limit for each section to ensure all sections fit on the page. 
 4. The total word limit for all sections combined must not exceed ${maxWordsPerPage}.
-5. Ensure the output is compact and suitable for quick studying.
-6. Do not include any additional text outside this JSON format (DO NOT INCLUDE ''' or the json tag).
-7. Use valid HTML <h3> tags for section titles, and ensure content is in plain text.
+5. The person creating the cheatsheet would like to ensure that the cheat sheet mentions these topics: ${promptText}
+6. If there are equations or formulas be sure to include them with each section.
+7. Ensure the output is compact and suitable for quick studying.
+8. Do not include any additional text outside this JSON format (DO NOT INCLUDE ''' or the json tag).
+9. Use valid HTML <h3> tags for section titles, and ensure content is in plain text.
 
 ### Input:
 ${pages.join("\n\n")}
@@ -122,10 +126,11 @@ const summarizeSection = async (sectionTitle, sectionContent, wordLimit) => {
 
     ### Output:
     Provide a dense summary in plain text format:
-    1. Use <b> tags for key concepts (e.g., "<b>Important</b>").
+    1. Use <b> tags for key concepts AND italics and bold for formulas (e.g., "<b>Important</b>").
     2. Use structured plain text bullet points or numbered lists for organization.
-    3. Summarize the section in at most ${wordLimit} words.
+    3. Summarize the section in at most ${wordLimit*2} words.
     4. Ensure the output is plain text, formatted for HTML but without Markdown syntax.
+    5. Don't include the phrase "Cheat sheet" anywhere.
     `;
 
     try {
@@ -225,35 +230,83 @@ const formatContentWithVisuals = (contentSections, layout) => {
 };
 
 const generateHtmlContent = (columns, layout) => {
-    const { columnWidth, fontSize, lineHeight } = layout;
+    const { columnWidth } = layout;
 
+    const totalColumns = 6; // Always 6 columns
+    const filledColumnsCount = Math.min(columns.length, 4); // Limit content columns to 4
+    const remainingColumns = totalColumns - filledColumnsCount; // Calculate remaining columns
+
+    // Generate HTML for filled content columns
+    const mainColumnsHtml = columns
+        .slice(0, filledColumnsCount) // Use only the available filled columns
+        .map(
+            (column, index) => `
+            <div style="
+                grid-column: ${index + 1}; /* Place each column in its respective slot */
+                box-sizing: border-box;
+                text-align: justify;
+                margin: 0;
+                padding: 0;
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: break-word;
+                height: auto;
+                hyphens: auto;
+            ">
+                ${DOMPurify.sanitize(column.join(" "))} 
+            </div>
+        `
+        )
+        .join("");
+
+    // Determine the starting column for the writing space
+    const writingSpaceStartColumn = filledColumnsCount + 1;
+
+    // Writing space (occupying remaining columns)
+    const editableColumnsHtml = `
+        <div style="
+            grid-column: ${writingSpaceStartColumn} / span ${remainingColumns}; /* Dynamically span remaining columns */
+            box-sizing: border-box;
+            border: 1px solid black;
+            width: 92%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+            font-size: 8px;
+            line-height: 1.2;
+        ">
+
+            <div style="
+                display: flex;
+                justify-content: space-between;
+                font-size: 8px;
+                margin-top: 5px;
+                color: black;
+            ">
+                <span>Writing Space</span>
+                <span>Generated on Cheatsheeter.ai</span>
+            </div>
+        </div>
+    `;
+
+    // Combine all into a single grid layout
     return `
         <div style="
+            padding: 5mm;
             display: grid;
-            grid-template-columns: repeat(${columns.length}, ${columnWidth}mm);
+            grid-template-columns: repeat(${totalColumns}, ${columnWidth}mm);
+            gap: 2mm;
             width: 100%;
             height: 100%;
             font-size: 8px;
             font-family: Arial, sans-serif;
-            line-height: 1;
+            line-height: 1.2;
             color: black;
             box-sizing: border-box;
         ">
-            ${columns
-            .map((column) => `
-                    <div style="
-                        box-sizing: border-box;
-                        text-align: justify;
-                        margin: 0;
-                        padding: 0;
-                        white-space: normal; /* Allow normal text wrapping */
-                        word-break: break-word; /* Ensure words break properly */
-                        overflow-wrap: break-word; /* Handle text overflow */
-                    ">
-                        ${DOMPurify.sanitize(column.join("<br>"))} <!-- Ensure HTML is sanitized -->
-                    </div>
-                `)
-            .join("")}
+            ${mainColumnsHtml}
+            ${editableColumnsHtml}
         </div>
     `;
 };
@@ -283,7 +336,12 @@ const generateCheatSheetPdf = async (contentSections) => {
     const imgWidth = PAGE_HEIGHT;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-    pdf.save("cheat_sheet.pdf");
+
+    // Automatically download the generated PDF
+    const fileName = `cheatsheet-${Date.now()}.pdf`;
+    pdf.save(fileName);
+
+    return fileName; // Return the file name for reference if needed
 };
 
 
@@ -306,7 +364,7 @@ renderer.strong = (text) => `<strong style="font-weight: bold;">${text}</strong>
 // Apply renderer
 marked.use({ renderer });
 
-const processFilesAndGenerateCheatSheet = async (uploadedFiles, selectedVisuals = []) => {
+const processFilesAndGenerateCheatSheet = async (uploadedFiles, selectedVisuals = [], promptText) => {
     try {
         const pages = [];
         for (const file of uploadedFiles) {
@@ -324,7 +382,7 @@ const processFilesAndGenerateCheatSheet = async (uploadedFiles, selectedVisuals 
 
         // Analyze pages to determine structure
         console.log("Analyzing pages...");
-        const structure = await analyzePages(pages);
+        const structure = await analyzePages(pages, promptText);
         console.log("Page structure received:", structure);
 
         if (!structure || !structure.sections || structure.sections.length === 0) {
@@ -340,12 +398,19 @@ const processFilesAndGenerateCheatSheet = async (uploadedFiles, selectedVisuals 
             throw new Error("Failed to summarize sections. No content available.");
         }
 
-        // Generate PDF
+        // Generate HTML content for preview and PDF
+        console.log("Generating cheat sheet HTML...");
+        const layout = calculateDynamicLayout(
+            contentSections.reduce((sum, section) => sum + section.text.length, 0)
+        );
+        const formattedColumns = formatContentWithVisuals(contentSections, layout);
+        const htmlContent = generateHtmlContent(formattedColumns, layout);
+
         console.log("Generating PDF...");
         await generateCheatSheetPdf(contentSections);
 
-        console.log("PDF generation successful.");
-        return true; // Indicate success
+        console.log("Cheat sheet generation successful.");
+        return { success: true, htmlContent }; // Return the HTML content
     } catch (error) {
         console.error("Error generating cheat sheet:", error.message);
         throw new Error("Cheat sheet generation failed. Please check the logs.");

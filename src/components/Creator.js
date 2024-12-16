@@ -5,10 +5,15 @@ import { FaCloudUploadAlt } from "react-icons/fa";
 import html2pdf from "html2pdf.js";
 import { extractTextFromPdfByPage } from "../services/pdfParser";
 import * as pdfjsLib from "pdfjs-dist/webpack";
-import DownloadModal from "../components/DownloadModal";
 import { getUserDocument, updateUserCheatSheetData } from "../services/userService";
 import { processFilesAndGenerateCheatSheet } from "../services/cheatSheetService";
 import extractTextFromImage from '../services/googleVision';
+import LoadingBar from "./LoadingBar";
+import SchoolClassModal from "./SchoolClassModal";
+import { addDoc, collection } from "firebase/firestore"; // Import Firestore functions
+import { db } from "../firebase";
+import { uploadCheatSheetToUserBucket, uploadCheatSheetToGlobalBucket } from "../services/userService";
+import uploadCheatSheet from "../services/uploadCheatSheet";
 
 
 const Creator = ({ isDarkMode, scrollToDemo }) => {
@@ -28,6 +33,40 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [previewPages, setPreviewPages] = useState([]);
     const [currentPreviewFile, setCurrentPreviewFile] = useState(null);
+    const [loadingProgress, setLoadingProgress] = useState(0);
+    const [school, setSchool] = useState("");
+    const [classInfo, setClassInfo] = useState("");
+    const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+    const [cheatSheetId, setCheatSheetId] = useState(null); // State for cheatSheetId
+    const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false); // State for metadata modal
+    const [isPublic, setIsPublic] = useState(false); // Add this line to define isPublic state
+    const [isWriting, setIsWriting] = useState(false); // Add this line to define isPublic state
+
+    const handleMetadataModalOpen = () => {
+        setIsMetadataModalOpen(true); // Open the modal
+    };
+
+    const handleMetadataModalClose = () => {
+        setIsMetadataModalOpen(false); // Close the modal
+    };
+
+    const handleSaveMetadata = async (metadata) => {
+        if (!cheatSheetId) return;
+
+        try {
+            await addDoc(collection(db, "cheatSheetMetadata"), {
+                cheatSheetId,
+                ...metadata,
+                createdAt: new Date(),
+            });
+            alert("Metadata saved successfully!");
+            setIsMetadataModalOpen(false); // Close modal after saving
+        } catch (error) {
+            console.error("Error saving metadata:", error);
+            alert("Failed to save metadata. Please try again.");
+        }
+    };
+
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -134,39 +173,51 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
             setError("You need to be logged in to create a cheat sheet.");
             return;
         }
-
+    
         if (uploadedFiles.length === 0) {
             setError("Please upload a file.");
             return;
         }
-
-        if (Object.keys(selectedSlides).length === 0) {
+    
+        const hasPdfFiles = uploadedFiles.some((file) => file.file?.type === "application/pdf");
+        if (hasPdfFiles && Object.keys(selectedSlides).length === 0) {
             setError("Please select at least one slide.");
             return;
         }
-
+    
         setIsLoading(true);
         setError(null);
-
+    
+        let progress = 0;
+    
         try {
+            progress = 10;
+            setLoadingProgress(progress);
+    
             const userDoc = await getUserDocument(user);
             if (!userDoc) {
                 setError("User not found. Please try again.");
                 return;
             }
-
+    
+            progress = 20;
+            setLoadingProgress(progress);
+    
             const { subscriptionType, cheatSheetsCreatedToday } = userDoc;
-
+    
             if (subscriptionType === "freemium" && cheatSheetsCreatedToday >= 1000) {
                 setError(
                     "Freemium users can only create one cheat sheet per day. Upgrade to premium for unlimited access."
                 );
                 return;
             }
-
+    
+            progress = 30;
+            setLoadingProgress(progress);
+    
             const rawTextEntries = uploadedFiles.filter((file) => typeof file === "string");
             const fileEntries = uploadedFiles.filter((file) => typeof file === "object" && file.file);
-
+    
             const extractedTextPromises = fileEntries.map(async (file) => {
                 try {
                     if (file.file.type === "application/pdf" && selectedSlides[file.file.name]) {
@@ -184,72 +235,57 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                     throw new Error(`Failed to process file: ${file.file.name}`);
                 }
             });
-
+    
             const allExtractedTextArrays = await Promise.all(extractedTextPromises);
             const allExtractedText = [...allExtractedTextArrays.flat(), ...rawTextEntries];
-
+    
             if (allExtractedText.length === 0) {
                 setError("No valid content to process.");
                 return;
             }
-
+    
+            progress = 60;
+            setLoadingProgress(progress);
+    
             try {
                 const cheatSheet = await processFilesAndGenerateCheatSheet(allExtractedText, theme, promptText);
+    
+                progress = 90;
+                setLoadingProgress(progress);
+    
                 if (!cheatSheet) {
                     throw new Error("Cheat sheet generation returned null or undefined.");
                 }
-
+    
+                const cheatSheetDocRef = await addDoc(collection(db, "cheatSheets"), {
+                    userId: user.uid,
+                    isPublic,
+                    school,
+                    classInfo,
+                    createdAt: new Date(),
+                });
+    
+                const cheatSheetId = cheatSheetDocRef.id;
+    
                 setCheatSheet(cheatSheet);
+                setCheatSheetId(cheatSheetId); // Save ID for further metadata
                 setIsModalOpen(true);
                 setError(null); // Clear any previous errors
+    
+                // Automatically prompt user for metadata
+                setIsMetadataModalOpen(true);
+    
                 await updateUserCheatSheetData(user); // Update user data for cheat sheet creation
             } catch (err) {
                 console.error("Error during cheat sheet generation:", err.message);
-                setError("Failed to generate cheat sheet. Please try again.");
             }
         } catch (err) {
             console.error("Unhandled error during cheat sheet creation:", err.message);
             setError("Unexpected error occurred. Please try again later.");
         } finally {
+            progress = 100;
+            setLoadingProgress(progress);
             setIsLoading(false);
-        }
-    };
-
-    const handleDownloadPdf = () => {
-        const now = Date.now();
-        const cooldown = 30 * 1000; // 30 seconds cooldown
-
-        if (now - lastDownloadTime < cooldown) {
-            setError("Please wait before downloading another cheat sheet.");
-            return;
-        }
-
-        setLastDownloadTime(now);
-
-        const element = document.createElement("div");
-        element.innerHTML = cheatSheet;
-
-        html2pdf()
-            .set({
-                margin: 10,
-                filename: "cheat_sheet.pdf",
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-            })
-            .from(element)
-            .save()
-            .catch((err) => {
-                console.error("Error downloading PDF:", err);
-            });
-    };
-
-    const inspectImage = async (file) => {
-        try {
-            const imageText = await extractTextFromImage(file.url); // Extract text from image using Google Vision API or other OCR library
-            alert(`Extracted text from image: \n${imageText}`);
-        } catch (error) {
-            console.error("Error extracting text from image:", error.message);
-            setError("Failed to extract text from the image. Please try again.");
         }
     };
 
@@ -297,10 +333,6 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
         setUploadedFiles((prev) => [...prev, ...mappedFiles]);
     };
 
-    const handleExpandImage = (url) => {
-        setExpandedImage(url);
-    };
-
     const handleRemoveFile = (fileName) => {
         const updatedFiles = uploadedFiles.filter((file) => file.file.name !== fileName);
         setUploadedFiles(updatedFiles);
@@ -311,16 +343,6 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
             setPreviewPages([]);
             setCurrentPreviewFile(null);
         }
-    };
-
-    const isButtonEnabled = () => {
-        return (
-            uploadedFiles.length > 0 &&
-            promptText.trim() &&
-            pageSelection &&
-            theme &&
-            colorScheme
-        );
     };
 
     const colors = {
@@ -671,6 +693,7 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                                 padding: "10px 20px",
                                 borderRadius: "5px",
                                 cursor: "pointer",
+                                fontFamily: "'JetBrains Mono', monospace"
                             }}
                         >
                             Close
@@ -696,7 +719,7 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 </label>
                 <textarea
                     id="prompt-text"
-                    placeholder="Describe your cheat sheet in detail (e.g., topics, format, key points)..."
+                    placeholder="Describe specific topics that you'd like to be mentioned"
                     rows="3" // Reduced from 6 to 3
                     value={promptText}
                     onChange={(e) => setPromptText(e.target.value)}
@@ -730,46 +753,64 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 </small>
             </div>
 
-            {/* Page Selection
-            <div style={{ marginBottom: "20px" }}>
-                <label
-                    style={{
-                        display: "block",
-                        marginBottom: "10px",
-                        fontWeight: "bold",
-                    }}
-                >
-                    Number of Pages:
-                </label>
-                <div>
-                    <label style={{ marginRight: "20px" }}>
+            <div>
+                {/* Add School and Class Button */}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <button
+                        onClick={handleMetadataModalOpen}
+                        style={{
+                            padding: "10px 20px",
+                            backgroundColor: "black", // Bright green
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "8px",
+                            fontSize: "1rem",
+                            fontWeight: "bold",
+                            cursor: "pointer",
+                            fontFamily: "'JetBrains Mono', monospace",
+                            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.4)", // Subtle shadow effect
+                            transition: "all 0.3s ease",
+                        }}
+                    >
+                        Add School and Class
+                    </button>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "1rem" }}>
                         <input
-                            type="radio"
-                            name="pages"
-                            value="one"
-                            onChange={(e) => setPageSelection(e.target.value)}
+                            type="checkbox"
+                            checked={isPublic}
+                            onChange={(e) => setIsPublic(e.target.checked)}
                             style={{
-                                marginRight: "8px",
-                                accentColor: currentColors.text,
+                                width: "18px",
+                                height: "18px",
+                                cursor: "pointer",
                             }}
                         />
-                        One Page
+                        Make this public
                     </label>
-                    <label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "1rem", paddingLeft: "10px" }}>
                         <input
-                            type="radio"
-                            name="pages"
-                            value="two"
-                            onChange={(e) => setPageSelection(e.target.value)}
+                            type="checkbox"
+                            checked={isWriting}
+                            onChange={(e) => setIsWriting(e.target.checked)}
                             style={{
-                                marginRight: "8px",
-                                accentColor: currentColors.text,
+                                width: "18px",
+                                height: "18px",
+                                cursor: "pointer",
                             }}
                         />
-                        Two Pages
+                        Writing space
                     </label>
                 </div>
-            </div> */}
+
+                {/* School and Class Modal */}
+                {isMetadataModalOpen && (
+                    <SchoolClassModal
+                        onClose={handleMetadataModalClose}
+                        onSave={handleSaveMetadata}
+                    />
+                )}
+            </div>
+
 
             {/* Create Cheat Sheet and Demo Scroll */}
             <div style={{ textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "20px", marginTop: "20px" }}>
@@ -807,37 +848,10 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                     Demo
                 </p>
             </div>
-            {/* Modal for Cheat Sheet Preview */}
-            <DownloadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} isDarkMode={isDarkMode}>
-                <h3>Cheat Sheet Preview</h3>
-                <div
-                    style={{
-                        maxHeight: "70vh",
-                        overflowY: "auto",
-                        padding: "10px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "8px",
-                        background: "var(--box-bg)",
-                    }}
-                    dangerouslySetInnerHTML={{ __html: cheatSheet }}
-                />
-                <div style={{ marginTop: "20px", textAlign: "center" }}>
-                    <button
-                        onClick={handleDownloadPdf}
-                        style={{
-                            padding: "10px 20px",
-                            backgroundColor: "var(--primary)",
-                            color: "var(--bg)",
-                            border: "none",
-                            borderRadius: "8px",
-                            cursor: "pointer",
-                            fontSize: "1rem",
-                        }}
-                    >
-                        Download as PDF
-                    </button>
-                </div>
-            </DownloadModal>
+            <div style={{ paddingTop: isLoading ? "10px" : "0" }}>
+                {isLoading && <LoadingBar progress={loadingProgress} />}
+                {/* Other content */}
+            </div>
         </div>
     );
 };

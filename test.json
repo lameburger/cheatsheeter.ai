@@ -1,0 +1,22 @@
+{
+    "title": "Sample Cheat Sheet",
+    "author": "Test User",
+    "sections": [
+      {
+        "title": "Introduction",
+        "content": "This is a sample cheat sheet created for testing purposes."
+      },
+      {
+        "title": "Key Concepts",
+        "content": [
+          "Concept 1: Example explanation.",
+          "Concept 2: Another example."
+        ]
+      },
+      {
+        "title": "Conclusion",
+        "content": "This concludes the sample cheat sheet."
+      }
+    ],
+    "created_at": "2024-12-03T12:00:00Z"
+  }

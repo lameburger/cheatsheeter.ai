@@ -1,6 +1,38 @@
-import React from "react";
+import React, { useState } from "react";
+import { auth } from "../firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
+    const [loading, setLoading] = useState(false);
+    const user = auth.currentUser;
+
+    const handleUpgrade = async () => {
+        if (!user) {
+            alert("You need to be signed in to upgrade.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch("/create-checkout-session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: user.uid }),
+            });
+
+            const { sessionId } = await response.json();
+
+            // Redirect to Stripe Checkout
+            window.location.href = `https://checkout.stripe.com/pay/${sessionId}`;
+        } catch (error) {
+            console.error("Error creating Stripe Checkout session:", error);
+            alert("Failed to start Stripe Checkout. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -36,7 +68,7 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                         fontSize: "2rem",
                         marginBottom: "20px",
                         color: "var(--primary)",
-                        borderBottom: "2px solid var(--primary)",
+                        borderBottom: "5px solid var(--primary)",
                         paddingBottom: "10px",
                     }}
                 >
@@ -49,9 +81,10 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                         color: "var(--bg)",
                         marginBottom: "30px",
                         lineHeight: "1.6",
+                        fontWeight: "bold"
                     }}
                 >
-                    Unlock unlimited cheat sheet creation and exclusive access to our premium bank of expertly crafted templates.
+                    The site is ran by one dude who is a broke college student. API costs are high and wallets are low, subscribe to support.
                 </p>
 
                 {/* Features Section */}
@@ -66,9 +99,10 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                     <div
                         style={{
                             padding: "20px",
-                            border: "1px solid var(--border)",
+                            border: "3px solid var(--border)",
                             borderRadius: "8px",
                             backgroundColor: "var(--box-bg)",
+                            fontWeight: "bold"
                         }}
                     >
                         <h3 style={{ marginBottom: "10px", color: "var(--primary)" }}>
@@ -81,24 +115,26 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                     <div
                         style={{
                             padding: "20px",
-                            border: "1px solid var(--border)",
+                            border: "3px solid var(--border)",
                             borderRadius: "8px",
                             backgroundColor: "var(--box-bg)",
+                            fontWeight: "bold"
                         }}
                     >
                         <h3 style={{ marginBottom: "10px", color: "var(--primary)" }}>
-                            Premium Templates
+                            Sheet Database
                         </h3>
                         <p style={{ fontSize: "1rem", color: "var(--bg)" }}>
-                            Access a curated library of pre-made, high-quality templates.
+                            Access a curated library of pre-made, cheat sheet from universities and institutions.
                         </p>
                     </div>
                     <div
                         style={{
                             padding: "20px",
-                            border: "1px solid var(--border)",
+                            border: "3px solid var(--border)",
                             borderRadius: "8px",
                             backgroundColor: "var(--box-bg)",
+                            fontWeight: "bold"
                         }}
                     >
                         <h3 style={{ marginBottom: "10px", color: "var(--primary)" }}>
@@ -116,7 +152,7 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                         padding: "20px",
                         borderRadius: "8px",
                         backgroundColor: "var(--box-bg)",
-                        border: "2px solid var(--primary)",
+                        border: "4px solid var(--bg)",
                         marginBottom: "30px",
                         fontSize: "1.5rem",
                         fontWeight: "bold",
@@ -129,7 +165,8 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                 {/* Buttons */}
                 <div style={{ display: "flex", justifyContent: "center", gap: "20px" }}>
                     <button
-                        onClick={onUpgrade}
+                        onClick={handleUpgrade}
+                        disabled={loading}
                         style={{
                             fontFamily: "'JetBrains Mono', monospace",
                             padding: "15px 30px",
@@ -137,13 +174,13 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                             fontSize: "1rem",
                             fontWeight: "700",
                             color: "var(--bg)",
-                            backgroundColor: "var(--primary)",
+                            backgroundColor: loading ? "gray" : "var(--primary)",
                             border: "none",
-                            cursor: "pointer",
+                            cursor: loading ? "not-allowed" : "pointer",
                             transition: "background-color 0.3s ease",
                         }}
                     >
-                        Upgrade Now
+                        {loading ? "Redirecting..." : "Upgrade Now"}
                     </button>
                     <button
                         onClick={onClose}

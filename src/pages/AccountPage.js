@@ -15,31 +15,6 @@ const AccountPage = () => {
     const auth = getAuth();
     const db = getFirestore();
 
-    // useEffect(() => {
-    //     const dots = document.querySelectorAll(".dot");
-
-    //     const pulseRandomDot = () => {
-    //         const randomIndex = Math.floor(Math.random() * dots.length);
-    //         const randomDot = dots[randomIndex];
-
-    //         if (!randomDot.classList.contains("animated")) {
-    //             randomDot.classList.add("animated");
-
-    //             // Remove the animation after a random duration
-    //             setTimeout(() => {
-    //                 randomDot.classList.remove("animated");
-    //             }, Math.random() * 3000 + 1000); // Between 1-4 seconds
-    //         }
-    //     };
-
-    //     // Trigger random pulsing every 500ms
-    //     const interval = setInterval(pulseRandomDot, 500);
-
-    //     return () => {
-    //         clearInterval(interval); // Cleanup interval on component unmount
-    //     };
-    // }, []);
-
     useEffect(() => {
         const fetchAccountInfo = async () => {
             try {
@@ -199,7 +174,7 @@ const AccountPage = () => {
                                 </p>
                                 <p>
                                     <strong>Cheat Sheets Created:</strong>{" "}
-                                    {accountInfo?.cheatSheetsCreated || 0}
+                                    {accountInfo?.cheatSheetsCreatedToday || 0}
                                 </p>
                                 <button
                                     onClick={() => setIsUpgradeModalOpen(true)}

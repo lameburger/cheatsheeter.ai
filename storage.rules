@@ -1,0 +1,11 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{userId}/{fileName} {
+      allow read: if request.auth != null; // Authenticated users
+    }
+    match /global-cheatsheets/{fileName} {
+      allow read: if true; // Public access
+    }
+  }
+}

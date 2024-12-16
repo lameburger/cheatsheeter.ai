@@ -19,6 +19,10 @@ const Navbar = () => {
         localStorage.setItem("theme", newTheme); // Persist theme state
     };
 
+    const handleClose = () => {
+        setIsModalOpen(false);
+    };
+
     const handleSignOut = async () => {
         try {
             await auth.signOut();
@@ -223,7 +227,7 @@ const Navbar = () => {
                         >
                             ×
                         </button>
-                        <SignUp onSignInOrSignUp={handleSignInOrSignUp} />
+                        <SignUp onSignInOrSignUp={handleSignInOrSignUp} onClose={handleClose}/>
                     </div>
                 </div>
             )}

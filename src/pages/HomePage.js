@@ -6,6 +6,8 @@ import HowItWorks from "../components/HowItWorks";
 import SupportComponent from "../components/SupportComponent";
 import { FaGlobe } from "react-icons/fa";
 import "../styles/global.css";
+import handleTestJsonUpload from "../services/uploadTestJson"; // Adjust path if needed
+
 
 const HomePage = () => {
     const [isDarkMode, setIsDarkMode] = useState(false);
@@ -70,7 +72,7 @@ const HomePage = () => {
                     zIndex: 0, // Lower z-index for dots
                 }}
             >
-                {Array.from({ length: 2000 }).map((_, i) => (
+                {Array.from({ length: 2500 }).map((_, i) => (
                     <div key={i} className="dot"></div>
                 ))}
             </div>
