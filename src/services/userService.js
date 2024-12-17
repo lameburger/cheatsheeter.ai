@@ -8,40 +8,56 @@ const db = getFirestore();
 export const createUserDocument = async (user) => {
     if (!user) return;
 
-    const userDoc = doc(db, "users", user.uid);
-    const userSnapshot = await getDoc(userDoc);
+    const userDocRef = doc(db, "users", user.uid);
+    const userSnapshot = await getDoc(userDocRef);
 
     if (!userSnapshot.exists()) {
-        await setDoc(userDoc, {
-            email: user.email,
-            subscriptionType: "freemium",
-            cheatSheetsCreatedToday: 0,
+        // Create the user document with required fields
+        await setDoc(userDocRef, {
+            email: user.email || "unknown",
+            subscriptionType: "freemium", // Set default subscription type
+            totalCheatSheetsCreated: 0,
             lastCheatSheetCreated: null,
             createdAt: serverTimestamp(),
         });
+        console.log("✅ User document initialized");
+    } else {
+        console.log("⚠️ User document already exists");
     }
 };
 
+// Fetch the user's Firestore document
 // Fetch the user's Firestore document
 export const getUserDocument = async (user) => {
     if (!user) return null;
 
     const userDoc = doc(db, "users", user.uid);
-    const userSnapshot = await getDoc(userDoc);
-
-    return userSnapshot.exists() ? userSnapshot.data() : null;
+    try {
+        const userSnapshot = await getDoc(userDoc);
+        return userSnapshot.exists() ? userSnapshot.data() : null;
+    } catch (error) {
+        console.error("Error fetching user document:", error.message);
+        throw new Error("Failed to fetch user document.");
+    }
 };
 
 // Update the cheat sheet usage for a user
 export const updateUserCheatSheetData = async (user) => {
     if (!user) return;
 
-    const userDoc = doc(db, "users", user.uid);
+    const userDocRef = doc(db, "users", user.uid);
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
 
-    await updateDoc(userDoc, {
-        cheatSheetsCreatedToday: increment(1), // Use Firestore's increment function
-        lastCheatSheetCreated: serverTimestamp(),
-    });
+    try {
+        await updateDoc(userDocRef, {
+            cheatSheetsCreatedToday: { [today]: increment(1) }, // Ensure it exists
+            lastCheatSheetCreated: serverTimestamp(),
+        });
+        console.log("User cheat sheet data updated successfully");
+    } catch (error) {
+        console.error("Error updating cheat sheet data:", error.message);
+        throw new Error("Failed to update cheat sheet data.");
+    }
 };
 
 // Upgrade the user's subscription
@@ -55,9 +71,12 @@ export const upgradeSubscription = async (user) => {
     });
 };
 
-// Upload a cheat sheet to the user's bucket
 export const uploadCheatSheetToUserBucket = async (user, cheatSheetHtml, fileName) => {
     if (!user) return;
+
+    if (!cheatSheetHtml || !fileName) {
+        throw new Error("Invalid cheat sheet content or file name.");
+    }
 
     const userBucketRef = ref(storage, `users/${user.uid}/${fileName}.html`);
 

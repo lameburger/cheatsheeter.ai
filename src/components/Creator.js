@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { auth } from "../firebase";
+import { getAuth } from "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
 import { FaCloudUploadAlt } from "react-icons/fa";
 import html2pdf from "html2pdf.js";
@@ -10,7 +11,7 @@ import { processFilesAndGenerateCheatSheet } from "../services/cheatSheetService
 import extractTextFromImage from '../services/googleVision';
 import LoadingBar from "./LoadingBar";
 import SchoolClassModal from "./SchoolClassModal";
-import { addDoc, collection } from "firebase/firestore"; // Import Firestore functions
+import { addDoc, collection, doc, getDoc, updateDoc, setDoc, increment, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { uploadCheatSheetToUserBucket, uploadCheatSheetToGlobalBucket } from "../services/userService";
 import uploadCheatSheet from "../services/uploadCheatSheet";
@@ -27,7 +28,6 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
     const [cheatSheet, setCheatSheet] = useState("");
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [lastDownloadTime, setLastDownloadTime] = useState(0);
     const [selectedSlides, setSelectedSlides] = useState({});
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -41,6 +41,8 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
     const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false); // State for metadata modal
     const [isPublic, setIsPublic] = useState(false); // Add this line to define isPublic state
     const [isWriting, setIsWriting] = useState(false); // Add this line to define isPublic state
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalContent, setModalContent] = useState({});
 
     const handleMetadataModalOpen = () => {
         setIsMetadataModalOpen(true); // Open the modal
@@ -173,120 +175,217 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
             setError("You need to be logged in to create a cheat sheet.");
             return;
         }
-    
+
         if (uploadedFiles.length === 0) {
             setError("Please upload a file.");
             return;
         }
-    
+
         const hasPdfFiles = uploadedFiles.some((file) => file.file?.type === "application/pdf");
         if (hasPdfFiles && Object.keys(selectedSlides).length === 0) {
             setError("Please select at least one slide.");
             return;
         }
-    
+
         setIsLoading(true);
         setError(null);
-    
-        let progress = 0;
-    
+
+        const now = new Date();
+        const today = now.toISOString().split("T")[0]; // YYYY-MM-DD format
+
         try {
-            progress = 10;
-            setLoadingProgress(progress);
-    
-            const userDoc = await getUserDocument(user);
-            if (!userDoc) {
-                setError("User not found. Please try again.");
-                return;
+            const userDocRef = doc(db, "users", user.uid);
+            const userSnapshot = await getDoc(userDocRef);
+
+            let userData;
+
+            // Initialize user document if it doesn't exist
+            if (!userSnapshot.exists()) {
+                console.log("✅ Initializing user document...");
+                userData = {
+                    email: user.email,
+                    subscriptionType: "freemium",
+                    cheatSheetsCreatedToday: { [today]: 1 },
+                    lastCheatSheetCreated: now,
+                    createdAt: serverTimestamp(),
+                };
+                await setDoc(userDocRef, userData);
+            } else {
+                userData = userSnapshot.data();
+
+                const subscriptionType = userData?.subscriptionType || "freemium";
+                const totalCheatSheetsCreated = userData?.totalCheatSheetsCreated || 0;
+
+
+                console.log(subscriptionType);
+
+                if (subscriptionType === "freemium" && totalCheatSheetsCreated >= 3) {
+                    setModalContent({
+                        title: "Limit Reached!",
+                        message:
+                            "Freemium users can only create up to 3 cheat sheets. Support a broke college student's wallet by subscribing for unlimited cheat sheets!",
+                        buttonText: "Upgrade to Premium",
+                        buttonLink: "https://buy.stripe.com/28o3dybZJ1tkaS45kl",
+                    });
+                    setIsModalOpen(true);
+                    setIsLoading(false);
+                    return; // Early exit to cancel all further execution
+                }
+
+                // Update total cheat sheet count in Firestore
+                await updateDoc(userDocRef, {
+                    totalCheatSheetsCreated: increment(1), // Increment total cheat sheet count
+                    lastCheatSheetCreated: serverTimestamp(), // Update timestamp
+                });
+
+                // Premium User Check: 20 cheat sheets per day
+                // const todayCount = cheatSheetsCreatedToday?.[today] || 0;
+                // if (subscriptionType === "premium" && todayCount >= 20) {
+                //     setError("Premium users can only create up to 20 cheat sheets per day.");
+                //     setIsLoading(false);
+                //     return;
+                // }
+
+                // Update Firestore counts
+                await updateDoc(userDocRef, {
+                    [`cheatSheetsCreatedToday.${today}`]: increment(1),
+                    lastCheatSheetCreated: serverTimestamp(),
+                });
             }
-    
-            progress = 20;
-            setLoadingProgress(progress);
-    
-            const { subscriptionType, cheatSheetsCreatedToday } = userDoc;
-    
-            if (subscriptionType === "freemium" && cheatSheetsCreatedToday >= 1000) {
-                setError(
-                    "Freemium users can only create one cheat sheet per day. Upgrade to premium for unlimited access."
-                );
-                return;
-            }
-    
-            progress = 30;
-            setLoadingProgress(progress);
-    
+            setLoadingProgress(30);
+
+            // Extract Text
             const rawTextEntries = uploadedFiles.filter((file) => typeof file === "string");
             const fileEntries = uploadedFiles.filter((file) => typeof file === "object" && file.file);
-    
+
             const extractedTextPromises = fileEntries.map(async (file) => {
-                try {
-                    if (file.file.type === "application/pdf" && selectedSlides[file.file.name]) {
-                        const pages = await extractTextFromPdfByPage(file.file);
-                        return selectedSlides[file.file.name]
-                            .map((pageIndex) => pages[pageIndex - 1])
-                            .filter(Boolean);
-                    } else if (file.file.type.startsWith("image/")) {
-                        const imageText = await extractTextFromImage(file.file.path || file.file);
-                        return [imageText];
-                    }
-                    return [];
-                } catch (err) {
-                    console.error("Error extracting text from file:", file.file.name, err);
-                    throw new Error(`Failed to process file: ${file.file.name}`);
+                if (file.file.type === "application/pdf" && selectedSlides[file.file.name]) {
+                    const pages = await extractTextFromPdfByPage(file.file);
+                    return selectedSlides[file.file.name]
+                        .map((pageIndex) => pages[pageIndex - 1])
+                        .filter(Boolean);
+                } else if (file.file.type.startsWith("image/")) {
+                    return [await extractTextFromImage(file.file.path || file.file)];
                 }
+                return [];
             });
-    
+
             const allExtractedTextArrays = await Promise.all(extractedTextPromises);
             const allExtractedText = [...allExtractedTextArrays.flat(), ...rawTextEntries];
-    
+
             if (allExtractedText.length === 0) {
                 setError("No valid content to process.");
+                setIsLoading(false);
                 return;
             }
-    
-            progress = 60;
-            setLoadingProgress(progress);
-    
-            try {
-                const cheatSheet = await processFilesAndGenerateCheatSheet(allExtractedText, theme, promptText);
-    
-                progress = 90;
-                setLoadingProgress(progress);
-    
-                if (!cheatSheet) {
-                    throw new Error("Cheat sheet generation returned null or undefined.");
-                }
-    
-                const cheatSheetDocRef = await addDoc(collection(db, "cheatSheets"), {
-                    userId: user.uid,
-                    isPublic,
-                    school,
-                    classInfo,
-                    createdAt: new Date(),
-                });
-    
-                const cheatSheetId = cheatSheetDocRef.id;
-    
-                setCheatSheet(cheatSheet);
-                setCheatSheetId(cheatSheetId); // Save ID for further metadata
-                setIsModalOpen(true);
-                setError(null); // Clear any previous errors
-    
-                // Automatically prompt user for metadata
-                setIsMetadataModalOpen(true);
-    
-                await updateUserCheatSheetData(user); // Update user data for cheat sheet creation
-            } catch (err) {
-                console.error("Error during cheat sheet generation:", err.message);
+
+            setLoadingProgress(60);
+
+            // Generate Cheat Sheet
+            const cheatSheet = await processFilesAndGenerateCheatSheet(allExtractedText, theme, promptText);
+
+            if (!cheatSheet) {
+                throw new Error("Cheat sheet generation failed.");
             }
+
+            // Save Cheat Sheet to Firestore
+            const cheatSheetRef = await addDoc(collection(db, "cheatSheets"), {
+                userId: user.uid,
+                content: cheatSheet,
+                school,
+                classInfo,
+                isPublic,
+                createdAt: serverTimestamp(),
+            });
+
+            setLoadingProgress(100);
+
+            console.log(`✅ Cheat sheet created successfully with ID: ${cheatSheetRef.id}`);
+            setIsModalOpen(true);
+            setError(null);
         } catch (err) {
-            console.error("Unhandled error during cheat sheet creation:", err.message);
-            setError("Unexpected error occurred. Please try again later.");
+            console.error("❌ Error creating cheat sheet:", err.message);
         } finally {
-            progress = 100;
-            setLoadingProgress(progress);
             setIsLoading(false);
         }
+    };
+
+    const Modal = ({ isOpen, onClose, title, message, buttonText, buttonLink }) => {
+        if (!isOpen) return null;
+
+        return (
+            <div
+                style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    backgroundColor: "rgba(0, 0, 0, 0.7)", // Dark overlay
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 9999, // Ensure modal is on top
+                }}
+            >
+                <div
+                    style={{
+                        background: "#ffffff",
+                        padding: "30px",
+                        borderRadius: "12px",
+                        maxWidth: "500px",
+                        width: "90%",
+                        textAlign: "center",
+                        boxShadow: "0 4px 10px rgba(0, 0, 0, 0.3)",
+                        zIndex: 10000, // Ensure content inside modal is above overlay
+                        fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                >
+                    <h2 style={{ marginBottom: "15px", color: "#333" }}>{title}</h2>
+                    <p style={{ marginBottom: "25px", color: "#555", fontSize: "1rem" }}>{message}</p>
+
+                    <a
+                        href={buttonLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                            display: "inline-block",
+                            padding: "12px 20px",
+                            borderRadius: "8px",
+                            backgroundColor: "#32CD32",
+                            color: "#ffffff",
+                            textDecoration: "none",
+                            fontWeight: "bold",
+                            fontSize: "1rem",
+                            boxShadow: "0 4px 10px rgba(50, 205, 50, 0.5)",
+                            transition: "background-color 0.3s",
+                        }}
+                    >
+                        {buttonText}
+                    </a>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            marginTop: "15px",
+                            display: "block",
+                            backgroundColor: "#FF6347", // Red close button
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "10px 20px",
+                            cursor: "pointer",
+                            fontSize: "1rem",
+                            fontWeight: "bold",
+                            width: "100%",
+                            fontFamily: "'JetBrains Mono', monospace",
+                            transition: "background-color 0.3s",
+                        }}
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     const handleFileUpload = (event) => {
@@ -376,6 +475,18 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
             }}
         >
+            {/* Modal */}
+            {isModalOpen && (
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)} // Close modal handler
+                    title={modalContent.title}
+                    message={modalContent.message}
+                    buttonText={modalContent.buttonText}
+                    buttonLink={modalContent.buttonLink}
+                />
+            )}
+
             <h2
                 style={{
                     textAlign: "center",

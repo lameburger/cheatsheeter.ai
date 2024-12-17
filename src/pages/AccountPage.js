@@ -190,7 +190,9 @@ const AccountPage = () => {
                                 </p>
                                 <p>
                                     <strong>Cheat Sheets Created:</strong>{" "}
-                                    {accountInfo?.cheatSheetsCreatedToday || 0}
+                                    {typeof accountInfo?.cheatSheetsCreatedToday === "object"
+                                        ? Object.values(accountInfo.cheatSheetsCreatedToday).reduce((sum, count) => sum + count, 0)
+                                        : 0}
                                 </p>
 
                                 {accountInfo?.subscriptionType === "premium" ? (
