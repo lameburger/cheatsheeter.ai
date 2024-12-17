@@ -1,8 +1,14 @@
 {
-    "rewrites": [
-      {
-        "source": "/api/(.*)",
-        "destination": "/api/$1"
-      }
+    "builds": [
+        {
+            "src": "api/stripeWebhook.js",
+            "use": "@vercel/node"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/$1"
+        }
     ]
-  }
+}

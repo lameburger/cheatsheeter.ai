@@ -13,7 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export const config = {
     api: {
-        bodyParser: false, // Stripe requires raw body
+        bodyParser: false, // Required for Stripe to process raw body
     },
 };
 
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     const sig = req.headers["stripe-signature"];
 
     try {
-        const rawBody = await buffer(req);
+        const rawBody = await buffer(req); // Use buffer to get raw body
 
         console.log("Raw Body:", rawBody.toString());
         console.log("Stripe Signature:", sig);
@@ -32,33 +32,37 @@ export default async function handler(req, res) {
             process.env.STRIPE_WEBHOOK_SECRET
         );
 
-        console.log("Event received:", event);
+        console.log("Stripe Event Received:", event);
 
         if (event.type === "checkout.session.completed") {
             const session = event.data.object;
 
-            const userEmail = session.customer_details.email;
-            console.log("Customer email:", userEmail);
+            // Extract metadata or session details
+            const customerEmail = session.customer_details?.email;
 
-            const userQuery = admin.firestore().collection("users").where("email", "==", userEmail);
-            const snapshot = await userQuery.get();
+            console.log("Customer Email:", customerEmail);
 
-            if (!snapshot.empty) {
-                snapshot.forEach(async (doc) => {
-                    await doc.ref.update({
-                        subscriptionType: "premium",
-                        subscriptionStart: admin.firestore.Timestamp.now(),
+            if (customerEmail) {
+                const userQuery = admin.firestore().collection("users").where("email", "==", customerEmail);
+                const snapshot = await userQuery.get();
+
+                if (!snapshot.empty) {
+                    snapshot.forEach(async (doc) => {
+                        await doc.ref.update({
+                            subscriptionType: "premium",
+                            subscriptionStart: admin.firestore.Timestamp.now(),
+                        });
                     });
-                });
-                console.log(`Subscription updated for user with email: ${userEmail}`);
-            } else {
-                console.log(`No user found with email: ${userEmail}`);
+                    console.log(`User ${customerEmail} updated to premium.`);
+                } else {
+                    console.log(`No user found with email: ${customerEmail}`);
+                }
             }
         }
 
         res.status(200).send("Webhook received successfully.");
     } catch (err) {
-        console.error("Webhook error:", err.message);
+        console.error("Webhook Error:", err.message);
         res.status(400).send(`Webhook Error: ${err.message}`);
     }
 }
