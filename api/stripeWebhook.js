@@ -35,47 +35,64 @@ export default async function handler(req, res) {
         const rawBody = await buffer(req);
         console.log("Raw Webhook Body:", rawBody.toString());
 
-        // Construct Stripe Event
-        const event = stripe.webhooks.constructEvent(
-            rawBody,
-            sig,
-            process.env.STRIPE_WEBHOOK_SECRET
-        );
+        // Validate Stripe signature
+        let event;
+        try {
+            event = stripe.webhooks.constructEvent(
+                rawBody,
+                sig,
+                process.env.STRIPE_WEBHOOK_SECRET
+            );
+            console.log("Verified Stripe Event:", event);
+        } catch (err) {
+            console.error("⚠️  Stripe signature verification failed:", err.message);
+            return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
+        }
 
-        console.log("Stripe Webhook Event:", event);
-
-        // Handle checkout.session.completed
+        // Handle specific event type
         if (event.type === "checkout.session.completed") {
             const session = event.data.object;
+
             const customerEmail = session.customer_details?.email;
+            console.log("✅ Customer Email:", customerEmail);
 
             if (!customerEmail) {
-                console.error("Customer email is missing in the session data.");
-                return res.status(400).send("Missing customer email.");
+                console.error("❌ Customer email is missing.");
+                return res.status(400).send("Missing customer email in session.");
             }
 
-            console.log(`Updating subscription for user: ${customerEmail}`);
+            try {
+                console.log(`🔎 Searching for user with email: ${customerEmail}`);
+                const userQuery = admin.firestore().collection("users").where("email", "==", customerEmail);
+                const snapshot = await userQuery.get();
 
-            // Update the user document in Firebase
-            const userQuery = admin.firestore().collection("users").where("email", "==", customerEmail);
-            const snapshot = await userQuery.get();
-
-            if (!snapshot.empty) {
-                snapshot.forEach(async (doc) => {
-                    await doc.ref.update({
-                        subscriptionType: "premium",
-                        subscriptionStart: admin.firestore.Timestamp.now(),
+                if (snapshot.empty) {
+                    console.error(`❌ No user found with email: ${customerEmail}`);
+                } else {
+                    const updatePromises = [];
+                    snapshot.forEach((doc) => {
+                        updatePromises.push(
+                            doc.ref.update({
+                                subscriptionType: "premium",
+                                subscriptionStart: admin.firestore.Timestamp.now(),
+                            })
+                        );
                     });
-                });
-                console.log(`Subscription updated for user: ${customerEmail}`);
-            } else {
-                console.error(`No user found with email: ${customerEmail}`);
+
+                    await Promise.all(updatePromises);
+                    console.log(`✅ Subscription updated for user: ${customerEmail}`);
+                }
+            } catch (firebaseErr) {
+                console.error("❌ Error updating Firestore:", firebaseErr.message);
+                return res.status(500).send(`Firestore Error: ${firebaseErr.message}`);
             }
+        } else {
+            console.log(`Unhandled event type: ${event.type}`);
         }
 
         res.status(200).send("Webhook received and processed successfully.");
     } catch (err) {
-        console.error("Webhook error:", err.message);
-        res.status(400).send(`Webhook Error: ${err.message}`);
+        console.error("❌ Webhook Error:", err.message);
+        res.status(500).send(`Webhook Error: ${err.message}`);
     }
 }
