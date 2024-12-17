@@ -367,7 +367,7 @@ const AccountPage = () => {
                                 color: "var(--primary)",
                             }}
                         />
-                        <span>© 2024 Cheatsheeter.ai</span>
+                        <span>© 2024 Cheatsheeter.com</span>
                     </div>
 
                     {/* Right Section */}

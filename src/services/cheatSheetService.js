@@ -47,7 +47,7 @@ const calculateDynamicLayout = (totalTextLength) => {
     return { numColumns, columnWidth, lineHeight, fontSize, maxLinesPerColumn };
 };
 
-const analyzePages = async (pages, promptText, maxWordsPerPage = 2000) => {
+const analyzePages = async (pages, promptText, maxWordsPerPage = 3000) => {
     const prompt = `
 You are an expert cheat sheet designer tasked with creating a structured and visually appealing cheat sheet.
 
@@ -112,6 +112,7 @@ Provide the cheat sheet structure with word limits in the following JSON format:
 };
 
 const summarizeSection = async (sectionTitle, sectionContent, wordLimit) => {
+    console.log("word limit: " + wordLimit);
     const cacheKey = `${sectionTitle}:${sectionContent}:${wordLimit}`;
     if (cache.has(cacheKey)) {
         return cache.get(cacheKey);
@@ -130,10 +131,9 @@ const summarizeSection = async (sectionTitle, sectionContent, wordLimit) => {
     Provide a dense summary in plain text format:
     1. Use <b> tags for key concepts AND italics and bold for formulas (e.g., "<b>Important</b>").
     2. Use structured plain text bullet points or numbered lists for organization.
-    3. Summarize the section in at most ${wordLimit*2} words.
-    4. Ensure the output is plain text, formatted for HTML but without Markdown syntax.
-    5. Don't include the phrase "Cheat sheet" anywhere.
-    6. If summarizing code, make sure that it is all in html readable format.
+    3. Ensure the output is plain text, formatted for HTML but without Markdown syntax.
+    4. Don't include the phrase "Cheat sheet" anywhere.
+    5. If summarizing code, make sure that it is all in html readable format.
     `;
 
     try {

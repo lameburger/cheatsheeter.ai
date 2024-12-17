@@ -60,8 +60,8 @@ const Demo = () => {
                 </h2>
                 <p style={{ fontSize: "1.2rem", lineHeight: "1.8", opacity: 0.9 }}>
                     No more shitty AI generated review guides. Cheatsheeter takes any number
-                    of lecture slides, hand written material, and course material and summarizes
-                    it all into a single page.
+                    of lecture slides, hand written material, and course materials to summarize
+                    based on user input into a single page of information (also allowing for notes).
                 </p>
             </section>
 
@@ -80,7 +80,7 @@ const Demo = () => {
                 <p style={{ fontSize: "1.2rem", lineHeight: "1.8", opacity: 0.9 }}>
                     The freemium version of the site offers three freely generated cheat
                     sheets. Yes, this number is low, but so is my wallet so bear with me.
-                    API costs are high and to maintain this site it isn't cheap. You can 
+                    API costs are high and to maintain this site it isn't cheap. You can
                     get ulimited (yes, unlimited) generations of cheatsheets if you subscribe.
                 </p>
             </section>
@@ -110,7 +110,16 @@ const Demo = () => {
                         fontSize: "1.5rem",
                     }}
                 >
-                    [ Video Placeholder ]
+                    <div style={{ textAlign: "center", marginTop: "20px" }}>
+                        <video
+                            width="100%"
+                            controls
+                            style={{ borderRadius: "8px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.2)" }}
+                        >
+                            <source src="cheatsheet_demo.mp4" type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
                 </div>
             </section>
 
@@ -133,7 +142,7 @@ const Demo = () => {
                                 color: "var(--primary)",
                             }}
                         />
-                        <span>© 2024 Cheatsheeter.ai</span>
+                        <span>© 2024 Cheatsheeter.com</span>
                     </div>
                 </div>
             </footer>

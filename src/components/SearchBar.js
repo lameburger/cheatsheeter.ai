@@ -97,7 +97,11 @@ const SearchBar = ({ user }) => {
 
     useEffect(() => {
         const delaySearch = setTimeout(() => {
-            if (searchInput) fetchCheatSheets(searchInput);
+            if (searchInput.trim()) {
+                fetchCheatSheets(searchInput);
+            } else {
+                setResults([]); // Clear results when search input is empty
+            }
         }, 300);
         return () => clearTimeout(delaySearch);
     }, [searchInput]);
