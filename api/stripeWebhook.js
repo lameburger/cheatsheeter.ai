@@ -5,115 +5,133 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-// Access environment variables
+// Required environment variables
 const {
     STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET,
     FIREBASE_SERVICE_ACCOUNT_KEY,
 } = process.env;
 
-// Check for required environment variables
+// Check environment variables
 if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET || !FIREBASE_SERVICE_ACCOUNT_KEY) {
-    console.error("❌ Missing environment variables. Please check your .env file or Vercel environment settings.");
-    process.exit(1);
+    throw new Error("❌ Missing required environment variables.");
 }
 
-// Initialize Firebase Admin SDK
+// Initialize Firebase Admin SDK once
 if (!admin.apps.length) {
     try {
-        const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY);
         admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
+            credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
         });
         console.log("✅ Firebase initialized successfully.");
     } catch (err) {
-        console.error("❌ Failed to initialize Firebase:", err.message);
-        process.exit(1);
+        console.error("❌ Firebase initialization failed:", err.message);
+        throw err;
     }
 }
 
 // Initialize Stripe
 const stripe = new Stripe(STRIPE_SECRET_KEY);
 
+// Required to disable automatic body parsing for Stripe
+export const config = {
+    api: { bodyParser: false },
+};
+
 export default async function handler(req, res) {
-    try {
-        // Log environment variables for debugging
-        console.log("🔎 Environment Variables:");
-        console.log("STRIPE_SECRET_KEY:", STRIPE_SECRET_KEY ? "Loaded" : "Not Loaded");
-        console.log("STRIPE_WEBHOOK_SECRET:", STRIPE_WEBHOOK_SECRET ? "Loaded" : "Not Loaded");
-        console.log("FIREBASE_SERVICE_ACCOUNT_KEY:", FIREBASE_SERVICE_ACCOUNT_KEY ? "Loaded" : "Not Loaded");
+    console.log("🔎 Incoming Request Method:", req.method);
 
-        // Respond to test calls
-        if (req.method === "GET") {
-            return res.status(200).json({
-                message: "Test API working!",
-                environmentVariables: {
-                    STRIPE_SECRET_KEY: STRIPE_SECRET_KEY ? "Loaded" : "Not Loaded",
-                    STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET ? "Loaded" : "Not Loaded",
-                    FIREBASE_SERVICE_ACCOUNT_KEY: FIREBASE_SERVICE_ACCOUNT_KEY ? "Loaded" : "Not Loaded",
-                },
-            });
-        }
+    // Debug route to confirm environment variables
+    if (req.method === "GET") {
+        return res.status(200).json({
+            message: "Test API is working!",
+            environmentVariables: {
+                STRIPE_SECRET_KEY: STRIPE_SECRET_KEY ? "Loaded" : "Missing",
+                STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET ? "Loaded" : "Missing",
+                FIREBASE_SERVICE_ACCOUNT_KEY: FIREBASE_SERVICE_ACCOUNT_KEY ? "Loaded" : "Missing",
+            },
+        });
+    }
 
-        // Check for raw body and signature
-        const rawBody = JSON.stringify(req.body); // Simplified body parsing
-        const sig = req.headers["stripe-signature"];
+    // Handle POST requests (Stripe webhook)
+    if (req.method === "POST") {
+        const signature = req.headers["stripe-signature"];
 
-        if (!sig) {
+        if (!signature) {
             console.error("❌ Missing Stripe signature.");
             return res.status(400).send("Missing Stripe signature.");
         }
 
-        // Verify webhook signature
-        let event;
+        let rawBody;
+
+        // Parse raw body for Stripe signature verification
         try {
-            event = stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET);
+            const chunks = [];
+            for await (const chunk of req) {
+                chunks.push(chunk);
+            }
+            rawBody = Buffer.concat(chunks);
+        } catch (err) {
+            console.error("❌ Error reading request body:", err.message);
+            return res.status(500).send("Error reading request body.");
+        }
+
+        let event;
+
+        try {
+            // Verify Stripe webhook signature
+            event = stripe.webhooks.constructEvent(rawBody, signature, STRIPE_WEBHOOK_SECRET);
             console.log("✅ Stripe Event Verified:", event.type);
         } catch (err) {
             console.error("❌ Stripe signature verification failed:", err.message);
             return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
         }
 
-        // Handle event types
-        if (event.type === "checkout.session.completed") {
-            const session = event.data.object;
-            const customerEmail = session.customer_details?.email;
+        // Handle specific event types
+        try {
+            if (event.type === "checkout.session.completed") {
+                const session = event.data.object;
+                const customerEmail = session.customer_details?.email;
 
-            if (!customerEmail) {
-                console.error("❌ Customer email missing in session.");
-                return res.status(400).send("Missing customer email in session.");
-            }
+                if (!customerEmail) {
+                    console.error("❌ Customer email missing.");
+                    return res.status(400).send("Missing customer email in session.");
+                }
 
-            console.log("✅ Processing user subscription for:", customerEmail);
+                console.log(`🔎 Processing subscription for user: ${customerEmail}`);
 
-            // Firestore Update
-            const userQuery = admin.firestore().collection("users").where("email", "==", customerEmail);
-            const snapshot = await userQuery.get();
+                // Query Firestore to find the user
+                const userQuery = admin.firestore().collection("users").where("email", "==", customerEmail);
+                const snapshot = await userQuery.get();
 
-            if (snapshot.empty) {
-                console.error(`❌ No user found with email: ${customerEmail}`);
-                return res.status(404).send("User not found.");
-            }
+                if (snapshot.empty) {
+                    console.error(`❌ No user found with email: ${customerEmail}`);
+                    return res.status(404).send("User not found.");
+                }
 
-            const updatePromises = [];
-            snapshot.forEach((doc) => {
-                updatePromises.push(
+                // Update Firestore documents
+                const updatePromises = snapshot.docs.map((doc) =>
                     doc.ref.update({
                         subscriptionType: "premium",
                         subscriptionStart: admin.firestore.Timestamp.now(),
                     })
                 );
-            });
 
-            await Promise.all(updatePromises);
-            console.log(`✅ Subscription updated for user: ${customerEmail}`);
-        } else {
-            console.warn(`⚠️ Unhandled event type: ${event.type}`);
+                await Promise.all(updatePromises);
+                console.log(`✅ Subscription updated successfully for: ${customerEmail}`);
+            } else {
+                console.warn(`⚠️ Unhandled event type: ${event.type}`);
+            }
+
+            // Respond to Stripe
+            res.status(200).send("Webhook received and processed successfully.");
+        } catch (err) {
+            console.error("❌ Error processing webhook:", err.message);
+            res.status(500).send(`Error processing webhook: ${err.message}`);
         }
-
-        res.status(200).send("Webhook received and processed successfully.");
-    } catch (err) {
-        console.error("❌ Webhook Error:", err.message);
-        res.status(500).send(`Webhook Error: ${err.message}`);
+    } else {
+        // Invalid request method
+        console.warn("⚠️ Method not allowed.");
+        res.status(405).send("Method Not Allowed");
     }
 }
