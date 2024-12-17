@@ -1,9 +1,9 @@
-import dotenv from "dotenv";
-dotenv.config(); // Load environment variables FIRST
-
 import Stripe from "stripe";
-import { buffer } from "micro";
 import admin from "firebase-admin";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
 
 // Access environment variables
 const {
@@ -14,7 +14,7 @@ const {
 
 // Check for required environment variables
 if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET || !FIREBASE_SERVICE_ACCOUNT_KEY) {
-    console.error("❌ Missing environment variables!");
+    console.error("❌ Missing environment variables. Please check your .env file or Vercel environment settings.");
     process.exit(1);
 }
 
@@ -27,7 +27,7 @@ if (!admin.apps.length) {
         });
         console.log("✅ Firebase initialized successfully.");
     } catch (err) {
-        console.error("❌ Firebase initialization failed:", err.message);
+        console.error("❌ Failed to initialize Firebase:", err.message);
         process.exit(1);
     }
 }
@@ -35,18 +35,36 @@ if (!admin.apps.length) {
 // Initialize Stripe
 const stripe = new Stripe(STRIPE_SECRET_KEY);
 
-export const config = {
-    api: { bodyParser: false }, // Stripe requires raw body
-};
-
 export default async function handler(req, res) {
-    const sig = req.headers["stripe-signature"];
-
     try {
-        const rawBody = await buffer(req); // Buffer the body
-        console.log("🔎 Raw Webhook Body:", rawBody.toString());
+        // Log environment variables for debugging
+        console.log("🔎 Environment Variables:");
+        console.log("STRIPE_SECRET_KEY:", STRIPE_SECRET_KEY ? "Loaded" : "Not Loaded");
+        console.log("STRIPE_WEBHOOK_SECRET:", STRIPE_WEBHOOK_SECRET ? "Loaded" : "Not Loaded");
+        console.log("FIREBASE_SERVICE_ACCOUNT_KEY:", FIREBASE_SERVICE_ACCOUNT_KEY ? "Loaded" : "Not Loaded");
 
-        // Verify Stripe signature
+        // Respond to test calls
+        if (req.method === "GET") {
+            return res.status(200).json({
+                message: "Test API working!",
+                environmentVariables: {
+                    STRIPE_SECRET_KEY: STRIPE_SECRET_KEY ? "Loaded" : "Not Loaded",
+                    STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET ? "Loaded" : "Not Loaded",
+                    FIREBASE_SERVICE_ACCOUNT_KEY: FIREBASE_SERVICE_ACCOUNT_KEY ? "Loaded" : "Not Loaded",
+                },
+            });
+        }
+
+        // Check for raw body and signature
+        const rawBody = JSON.stringify(req.body); // Simplified body parsing
+        const sig = req.headers["stripe-signature"];
+
+        if (!sig) {
+            console.error("❌ Missing Stripe signature.");
+            return res.status(400).send("Missing Stripe signature.");
+        }
+
+        // Verify webhook signature
         let event;
         try {
             event = stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET);
@@ -56,17 +74,17 @@ export default async function handler(req, res) {
             return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
         }
 
-        // Process checkout.session.completed
+        // Handle event types
         if (event.type === "checkout.session.completed") {
             const session = event.data.object;
             const customerEmail = session.customer_details?.email;
 
-            console.log("✅ Customer Email:", customerEmail);
-
             if (!customerEmail) {
-                console.error("❌ Customer email missing.");
-                return res.status(400).send("Missing customer email.");
+                console.error("❌ Customer email missing in session.");
+                return res.status(400).send("Missing customer email in session.");
             }
+
+            console.log("✅ Processing user subscription for:", customerEmail);
 
             // Firestore Update
             const userQuery = admin.firestore().collection("users").where("email", "==", customerEmail);
@@ -78,17 +96,19 @@ export default async function handler(req, res) {
             }
 
             const updatePromises = [];
-            snapshot.forEach((doc) =>
+            snapshot.forEach((doc) => {
                 updatePromises.push(
                     doc.ref.update({
                         subscriptionType: "premium",
                         subscriptionStart: admin.firestore.Timestamp.now(),
                     })
-                )
-            );
+                );
+            });
 
             await Promise.all(updatePromises);
-            console.log(`✅ Subscription updated for: ${customerEmail}`);
+            console.log(`✅ Subscription updated for user: ${customerEmail}`);
+        } else {
+            console.warn(`⚠️ Unhandled event type: ${event.type}`);
         }
 
         res.status(200).send("Webhook received and processed successfully.");
