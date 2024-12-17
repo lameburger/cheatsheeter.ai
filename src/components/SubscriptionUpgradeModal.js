@@ -9,19 +9,26 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose }) => {
 
     useEffect(() => {
         const checkSubscriptionStatus = async () => {
-            if (user) {
-                try {
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
+            if (!user) return;
 
-                    if (userDoc.exists() && userDoc.data().subscriptionType === "premium") {
-                        alert("Your subscription is already upgraded to Premium!");
-                        onClose();
-                    }
-                } catch (error) {
-                    console.error("Error checking subscription status in Firebase:", error);
-                    alert("Failed to verify subscription status. Please contact support.");
+            setLoading(true); // Show loading
+            try {
+                const userDocRef = doc(db, "users", user.uid);
+                const userDoc = await getDoc(userDocRef);
+
+                if (userDoc.exists() && userDoc.data().subscriptionType === "premium") {
+                    // Premium subscription already exists
+                    console.log("User already has Premium subscription.");
+                    alert("Your subscription is already upgraded to Premium!");
+                    onClose();
+                } else {
+                    console.log("User does not have a Premium subscription.");
                 }
+            } catch (error) {
+                console.error("Error checking subscription status:", error);
+                alert("Failed to verify subscription status. Please try again.");
+            } finally {
+                setLoading(false); // Stop loading
             }
         };
 
@@ -33,8 +40,8 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose }) => {
             alert("You need to be signed in to upgrade.");
             return;
         }
-    
-        // Open Stripe Payment Link in a new tab
+
+        console.log("Redirecting user to Stripe Payment Link...");
         const stripePaymentLink = "https://buy.stripe.com/28o3dybZJ1tkaS45kl";
         window.open(stripePaymentLink, "_blank", "noopener,noreferrer");
     };

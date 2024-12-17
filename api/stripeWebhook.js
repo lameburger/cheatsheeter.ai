@@ -41,18 +41,6 @@ export const config = {
 export default async function handler(req, res) {
     console.log("🔎 Incoming Request Method:", req.method);
 
-    // Debug route to confirm environment variables
-    if (req.method === "GET") {
-        return res.status(200).json({
-            message: "Test API is working!",
-            environmentVariables: {
-                STRIPE_SECRET_KEY: STRIPE_SECRET_KEY ? "Loaded" : "Missing",
-                STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET ? "Loaded" : "Missing",
-                FIREBASE_SERVICE_ACCOUNT_KEY: FIREBASE_SERVICE_ACCOUNT_KEY ? "Loaded" : "Missing",
-            },
-        });
-    }
-
     // Handle POST requests (Stripe webhook)
     if (req.method === "POST") {
         const signature = req.headers["stripe-signature"];
@@ -89,7 +77,7 @@ export default async function handler(req, res) {
 
         // Handle specific event types
         try {
-            if (event.type === "checkout.session.completed") {
+            if (event.type === "checkout.session.completed" || event.type === "payment_link.completed") {
                 const session = event.data.object;
                 const customerEmail = session.customer_details?.email;
 
