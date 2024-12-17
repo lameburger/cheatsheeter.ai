@@ -1,14 +1,14 @@
 {
     "builds": [
-        {
-            "src": "api/stripeWebhook.js",
-            "use": "@vercel/node"
-        }
+      {
+        "src": "api/**/*.js",
+        "use": "@vercel/node"
+      }
     ],
     "routes": [
-        {
-            "src": "/api/(.*)",
-            "dest": "/api/$1"
-        }
+      {
+        "src": "/api/(.*)",
+        "dest": "/api/$1"
+      }
     ]
-}
+  }
