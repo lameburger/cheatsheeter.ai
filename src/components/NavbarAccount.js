@@ -2,6 +2,7 @@ import React from "react";
 import { FaRegFileAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
+import SearchBar from "./SearchBar.js";
 
 const NavbarAccount = ({ user }) => {
     const navigate = useNavigate();
@@ -10,7 +11,7 @@ const NavbarAccount = ({ user }) => {
     const handleSignOut = async () => {
         try {
             await auth.signOut();
-            navigate("/"); 
+            navigate("/");
         } catch (error) {
             console.error("Error signing out:", error);
         }
@@ -34,7 +35,7 @@ const NavbarAccount = ({ user }) => {
                 alignItems: "center",
                 padding: "20px 15%",
                 fontFamily: "'JetBrains Mono', monospace",
-                color: "var(--box-bg)", 
+                color: "var(--box-bg)",
                 transition: "background-color 0.3s ease, color 0.3s ease",
             }}
         >
@@ -69,23 +70,11 @@ const NavbarAccount = ({ user }) => {
                     margin: "0 20px",
                     display: "flex",
                     justifyContent: "center",
+                    zIndex: "9999"
                 }}
             >
-                <input
-                    type="text"
-                    placeholder="Search your cheat sheets..."
-                    style={{
-                        width: "100%",
-                        maxWidth: "500px",
-                        padding: "10px 15px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "4px",
-                        fontSize: "1rem",
-                        color: "var(--bg)",
-                        backgroundColor: "var(--box-bg)",
-                        fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                />
+
+                <SearchBar user={auth.currentUser} />
             </div>
 
             {/* User Profile */}
@@ -103,7 +92,7 @@ const NavbarAccount = ({ user }) => {
                     onClick={handleSignOut}
                     style={{
                         padding: "10px 15px",
-                        backgroundColor: "#d9534f",
+                        backgroundColor: "#FF6347",
                         border: "none",
                         borderRadius: "4px",
                         fontSize: "0.9rem",

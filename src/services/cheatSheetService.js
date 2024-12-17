@@ -417,4 +417,4 @@ const processFilesAndGenerateCheatSheet = async (uploadedFiles, selectedVisuals 
     }
 };
 
-export { processFilesAndGenerateCheatSheet, generateCheatSheetPdf };
+export { processFilesAndGenerateCheatSheet, generateCheatSheetPdf, formatContentWithVisuals, calculateDynamicLayout, generateHtmlContent };

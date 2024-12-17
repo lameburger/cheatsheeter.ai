@@ -6,15 +6,14 @@ const SchoolClassModal = ({ onClose, onSave }) => {
     const [isPublic, setIsPublic] = useState(false);
 
     const handleSave = () => {
-        // Optional fields: If neither field is entered, confirm before proceeding
-        if (!school.trim() && !className.trim()) {
-            const confirmSave = window.confirm(
-                "You haven't entered a school or class. Are you sure you want to proceed?"
-            );
-            if (!confirmSave) return;
+        // Only pass the necessary fields (school, className, isPublic) as variables for React
+        // Check if the school and className are not empty before calling onSave
+        if (!school.trim() || !className.trim()) {
+            alert("School and class name are required.");
+            return;
         }
-
-        onSave({ school, className, isPublic });
+        
+        onSave({ school, classInfo: className, isPublic });
         onClose();
     };
 

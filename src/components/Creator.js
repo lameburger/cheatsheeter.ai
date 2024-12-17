@@ -10,7 +10,6 @@ import { getUserDocument, updateUserCheatSheetData } from "../services/userServi
 import { processFilesAndGenerateCheatSheet } from "../services/cheatSheetService";
 import extractTextFromImage from '../services/googleVision';
 import LoadingBar from "./LoadingBar";
-import SchoolClassModal from "./SchoolClassModal";
 import { addDoc, collection, doc, getDoc, updateDoc, setDoc, increment, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { uploadCheatSheetToUserBucket, uploadCheatSheetToGlobalBucket } from "../services/userService";
@@ -20,12 +19,8 @@ import uploadCheatSheet from "../services/uploadCheatSheet";
 const Creator = ({ isDarkMode, scrollToDemo }) => {
     const [uploadedFiles, setUploadedFiles] = useState([]);
     const [promptText, setPromptText] = useState("");
-    const [pageSelection, setPageSelection] = useState("");
-    const [theme, setTheme] = useState("");
-    const [colorScheme, setColorScheme] = useState("");
     const [expandedImage, setExpandedImage] = useState(null);
     const [error, setError] = useState(null);
-    const [cheatSheet, setCheatSheet] = useState("");
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [lastDownloadTime, setLastDownloadTime] = useState(0);
@@ -36,39 +31,10 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [school, setSchool] = useState("");
     const [classInfo, setClassInfo] = useState("");
-    const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
-    const [cheatSheetId, setCheatSheetId] = useState(null); // State for cheatSheetId
-    const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false); // State for metadata modal
+    const [testInfo, setTestInfo] = useState("");
     const [isPublic, setIsPublic] = useState(false); // Add this line to define isPublic state
-    const [isWriting, setIsWriting] = useState(false); // Add this line to define isPublic state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState({});
-
-    const handleMetadataModalOpen = () => {
-        setIsMetadataModalOpen(true); // Open the modal
-    };
-
-    const handleMetadataModalClose = () => {
-        setIsMetadataModalOpen(false); // Close the modal
-    };
-
-    const handleSaveMetadata = async (metadata) => {
-        if (!cheatSheetId) return;
-
-        try {
-            await addDoc(collection(db, "cheatSheetMetadata"), {
-                cheatSheetId,
-                ...metadata,
-                createdAt: new Date(),
-            });
-            alert("Metadata saved successfully!");
-            setIsMetadataModalOpen(false); // Close modal after saving
-        } catch (error) {
-            console.error("Error saving metadata:", error);
-            alert("Failed to save metadata. Please try again.");
-        }
-    };
-
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -175,89 +141,77 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
             setError("You need to be logged in to create a cheat sheet.");
             return;
         }
-
+    
         if (uploadedFiles.length === 0) {
             setError("Please upload a file.");
             return;
         }
-
+    
         const hasPdfFiles = uploadedFiles.some((file) => file.file?.type === "application/pdf");
         if (hasPdfFiles && Object.keys(selectedSlides).length === 0) {
             setError("Please select at least one slide.");
             return;
         }
-
+    
+        if (!school?.trim() || !classInfo?.trim()) {
+            setError("School and class information are required.");
+            return;
+        }
+    
         setIsLoading(true);
         setError(null);
-
+    
         const now = new Date();
         const today = now.toISOString().split("T")[0]; // YYYY-MM-DD format
-
+    
         try {
             const userDocRef = doc(db, "users", user.uid);
             const userSnapshot = await getDoc(userDocRef);
-
+    
             let userData;
-
+    
             // Initialize user document if it doesn't exist
             if (!userSnapshot.exists()) {
-                console.log("✅ Initializing user document...");
                 userData = {
                     email: user.email,
                     subscriptionType: "freemium",
                     cheatSheetsCreatedToday: { [today]: 1 },
+                    totalCheatSheetsCreated: 1,
                     lastCheatSheetCreated: now,
                     createdAt: serverTimestamp(),
                 };
                 await setDoc(userDocRef, userData);
             } else {
                 userData = userSnapshot.data();
-
                 const subscriptionType = userData?.subscriptionType || "freemium";
                 const totalCheatSheetsCreated = userData?.totalCheatSheetsCreated || 0;
-
-
-                console.log(subscriptionType);
-
+    
                 if (subscriptionType === "freemium" && totalCheatSheetsCreated >= 3) {
                     setModalContent({
                         title: "Limit Reached!",
-                        message:
-                            "Freemium users can only create up to 3 cheat sheets. Support a broke college student's wallet by subscribing for unlimited cheat sheets!",
+                        message: "Freemium users can only create up to 3 cheat sheets. Upgrade for unlimited access.",
                         buttonText: "Upgrade to Premium",
                         buttonLink: "https://buy.stripe.com/28o3dybZJ1tkaS45kl",
                     });
                     setIsModalOpen(true);
                     setIsLoading(false);
-                    return; // Early exit to cancel all further execution
+                    return;
                 }
-
-                // Update total cheat sheet count in Firestore
+    
+                // Update user cheat sheet count
                 await updateDoc(userDocRef, {
-                    totalCheatSheetsCreated: increment(1), // Increment total cheat sheet count
-                    lastCheatSheetCreated: serverTimestamp(), // Update timestamp
-                });
-
-                // Premium User Check: 20 cheat sheets per day
-                // const todayCount = cheatSheetsCreatedToday?.[today] || 0;
-                // if (subscriptionType === "premium" && todayCount >= 20) {
-                //     setError("Premium users can only create up to 20 cheat sheets per day.");
-                //     setIsLoading(false);
-                //     return;
-                // }
-
-                // Update Firestore counts
-                await updateDoc(userDocRef, {
-                    [`cheatSheetsCreatedToday.${today}`]: increment(1),
+                    totalCheatSheetsCreated: increment(1),
                     lastCheatSheetCreated: serverTimestamp(),
+                    [`cheatSheetsCreatedToday.${today}`]: increment(1),
                 });
             }
+    
             setLoadingProgress(30);
-
+    
             // Extract Text
             const rawTextEntries = uploadedFiles.filter((file) => typeof file === "string");
             const fileEntries = uploadedFiles.filter((file) => typeof file === "object" && file.file);
-
+    
             const extractedTextPromises = fileEntries.map(async (file) => {
                 if (file.file.type === "application/pdf" && selectedSlides[file.file.name]) {
                     const pages = await extractTextFromPdfByPage(file.file);
@@ -269,39 +223,39 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 }
                 return [];
             });
-
+    
             const allExtractedTextArrays = await Promise.all(extractedTextPromises);
             const allExtractedText = [...allExtractedTextArrays.flat(), ...rawTextEntries];
-
+    
             if (allExtractedText.length === 0) {
                 setError("No valid content to process.");
                 setIsLoading(false);
                 return;
             }
 
+    
+            // Generate HTML content for the cheat sheet
+            const { htmlContent } = await processFilesAndGenerateCheatSheet(uploadedFiles, selectedSlides, promptText);
+    
+            if (!htmlContent) {
+                throw new Error("Failed to generate cheat sheet content.");
+            }
+            
             setLoadingProgress(60);
 
-            // Generate Cheat Sheet
-            const cheatSheet = await processFilesAndGenerateCheatSheet(allExtractedText, theme, promptText);
-
-            if (!cheatSheet) {
-                throw new Error("Cheat sheet generation failed.");
-            }
-
             // Save Cheat Sheet to Firestore
-            const cheatSheetRef = await addDoc(collection(db, "cheatSheets"), {
+            await addDoc(collection(db, "cheatSheets"), {
                 userId: user.uid,
-                content: cheatSheet,
-                school,
-                classInfo,
+                content: htmlContent,
+                school: school.trim(),
+                classInfo: classInfo.trim(),
+                testInfo: testInfo.trim(),
                 isPublic,
                 createdAt: serverTimestamp(),
             });
-
+    
             setLoadingProgress(100);
 
-            console.log(`✅ Cheat sheet created successfully with ID: ${cheatSheetRef.id}`);
-            setIsModalOpen(true);
             setError(null);
         } catch (err) {
             console.error("❌ Error creating cheat sheet:", err.message);
@@ -866,60 +820,92 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
 
             <div>
                 {/* Add School and Class Button */}
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <button
-                        onClick={handleMetadataModalOpen}
-                        style={{
-                            padding: "10px 20px",
-                            backgroundColor: "black", // Bright green
-                            color: "#ffffff",
-                            border: "none",
-                            borderRadius: "8px",
-                            fontSize: "1rem",
-                            fontWeight: "bold",
-                            cursor: "pointer",
-                            fontFamily: "'JetBrains Mono', monospace",
-                            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.4)", // Subtle shadow effect
-                            transition: "all 0.3s ease",
-                        }}
-                    >
-                        Add School and Class
-                    </button>
-                    <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "1rem" }}>
-                        <input
-                            type="checkbox"
-                            checked={isPublic}
-                            onChange={(e) => setIsPublic(e.target.checked)}
+                <b>Additional information (This is public)</b>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "black" }}>
+                    <div style={{ marginBottom: "20px" }}>
+                        <label
                             style={{
-                                width: "18px",
-                                height: "18px",
-                                cursor: "pointer",
+                                display: "block",
+                                fontWeight: "bold",
+                                fontSize: "1rem",
+                                marginBottom: "8px",
+                                color: "black", // Label text color
+                            }}
+                        >
+                        </label>
+                        <input
+                            type="text"
+                            value={school}
+                            onChange={(e) => setSchool(e.target.value)}
+                            placeholder="Enter your school"
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                border: "2px solid #ccc",
+                                borderRadius: "8px",
+                                fontSize: "1rem",
+                                color: "black", // Input text color
+                                fontFamily: "'JetBrains Mono', monospace",
                             }}
                         />
-                        Make this public
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "1rem", paddingLeft: "10px" }}>
-                        <input
-                            type="checkbox"
-                            checked={isWriting}
-                            onChange={(e) => setIsWriting(e.target.checked)}
-                            style={{
-                                width: "18px",
-                                height: "18px",
-                                cursor: "pointer",
-                            }}
-                        />
-                        Writing space
-                    </label>
-                </div>
+                    </div>
 
-                {/* School and Class Modal */}
-                {isMetadataModalOpen && (
-                    <SchoolClassModal
-                        onClose={handleMetadataModalClose}
-                        onSave={handleSaveMetadata}
-                    />
-                )}
+                    <div style={{ marginBottom: "20px" }}>
+                        <label
+                            style={{
+                                display: "block",
+                                fontWeight: "bold",
+                                fontSize: "1rem",
+                                marginBottom: "8px",
+                                color: "black", // Label text color
+                            }}
+                        >
+                        </label>
+                        <input
+                            type="text"
+                            value={classInfo}
+                            onChange={(e) => setClassInfo(e.target.value)}
+                            placeholder="Enter your class"
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                border: "2px solid #ccc",
+                                borderRadius: "8px",
+                                fontSize: "1rem",
+                                color: "black", // Input text color
+                                fontFamily: "'JetBrains Mono', monospace",
+                            }}
+                        />
+                    </div>
+
+                    <div style={{ marginBottom: "20px" }}>
+                        <label
+                            style={{
+                                display: "block",
+                                fontWeight: "bold",
+                                fontSize: "1rem",
+                                marginBottom: "8px",
+                                color: "black", // Label text color
+                            }}
+                        >
+                        </label>
+                        <input
+                            type="text"
+                            value={testInfo}
+                            onChange={(e) => setTestInfo(e.target.value)}
+                            placeholder="Material"
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                border: "2px solid #ccc",
+                                borderRadius: "8px",
+                                fontSize: "1rem",
+                                color: "black", // Input text color
+                                fontFamily: "'JetBrains Mono', monospace",
+                            }}
+                        />
+                    </div>
+                </div>
             </div>
 
 

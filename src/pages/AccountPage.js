@@ -109,7 +109,7 @@ const AccountPage = () => {
                     width: "100%",
                     position: "sticky", // Ensures the navbar stays at the top when scrolling
                     top: 0,
-                    zIndex: 1, // Sets z-index to 1
+                    zIndex: 999, // Sets z-index to 1
                 }}
             >
                 <NavbarAccount />

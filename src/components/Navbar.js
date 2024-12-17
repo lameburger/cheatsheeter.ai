@@ -3,6 +3,7 @@ import { FaSun, FaMoon, FaRegFileAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import SignUp from "./SignUp";
+import SearchBar from "./SearchBar.js";
 
 const Navbar = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,22 +92,8 @@ const Navbar = () => {
                     justifyContent: "center",
                 }}
             >
-                <input
-                    type="text"
-                    placeholder="Search for cheat sheets..."
-                    style={{
-                        width: "100%",
-                        maxWidth: "500px",
-                        padding: "10px 15px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "4px",
-                        fontSize: "1rem",
-                        color: "var(--bg)",
-                        backgroundColor: "var(--box-bg)",
-                        fontFamily: "'JetBrains Mono', monospace",
-                        transition: "border-color 0.3s ease",
-                    }}
-                />
+                <SearchBar user={auth.currentUser} />
+
             </div>
 
             {/* Menu Items */}
@@ -155,7 +142,7 @@ const Navbar = () => {
                             onClick={handleSignOut}
                             style={{
                                 padding: "10px 15px",
-                                backgroundColor: "#d9534f",
+                                backgroundColor: "#FF6347",
                                 border: "none",
                                 borderRadius: "4px",
                                 fontSize: "0.9rem",
@@ -227,7 +214,7 @@ const Navbar = () => {
                         >
                             ×
                         </button>
-                        <SignUp onSignInOrSignUp={handleSignInOrSignUp} onClose={handleClose}/>
+                        <SignUp onSignInOrSignUp={handleSignInOrSignUp} onClose={handleClose} />
                     </div>
                 </div>
             )}
