@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import NavbarAccount from "../components/NavbarAccount";
-import { FaGlobe } from "react-icons/fa";
 import SubscriptionUpgradeModal from "../components/SubscriptionUpgradeModal";
+import SearchModal from "../components/SearchModal";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import html2canvas from "html2canvas";
+import { FaGlobe, FaChevronLeft, FaChevronRight, FaLock } from "react-icons/fa";
 
 const AccountPage = () => {
     const [user, setUser] = useState(null);
@@ -12,37 +15,85 @@ const AccountPage = () => {
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [loadingCancel, setLoadingCancel] = useState(false);
     const [error, setError] = useState("");
+    const [carouselIndex, setCarouselIndex] = useState(0);
+    const [previews, setPreviews] = useState([]);
+    const [selectedSheet, setSelectedSheet] = useState(null);
 
     const auth = getAuth();
     const db = getFirestore();
 
-    useEffect(() => {
-        const fetchAccountInfo = async () => {
-            try {
-                const currentUser = auth.currentUser;
-                if (currentUser) {
-                    setUser(currentUser);
-                    const userDoc = doc(db, "users", currentUser.uid);
-                    const userSnapshot = await getDoc(userDoc);
+    const fetchAccountInfo = async () => {
+        try {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+                setUser(currentUser);
 
-                    if (userSnapshot.exists()) {
-                        const data = userSnapshot.data();
-                        setAccountInfo(data);
-                        setCheatSheets(data.cheatSheets || []);
-                    } else {
-                        setError("No account information found for this user.");
-                    }
+                // Fetch cheat sheets where userId matches currentUser.uid
+                const cheatSheetsRef = collection(db, "cheatSheets");
+                const q = query(cheatSheetsRef, where("userId", "==", currentUser.uid));
+                const snapshot = await getDocs(q);
+
+                if (!snapshot.empty) {
+                    const fetchedSheets = snapshot.docs.map((doc) => ({
+                        id: doc.id,
+                        ...doc.data(),
+                    }));
+                    setCheatSheets(fetchedSheets); // Set fetched cheat sheets
                 } else {
-                    setError("You must be logged in to view account information.");
+                    setCheatSheets([]);
                 }
-            } catch (err) {
-                console.error("Error fetching account information:", err);
-                setError("An error occurred while fetching account information.");
+            } else {
+                setError("You must be logged in to view account information.");
             }
+        } catch (err) {
+            console.error("Error fetching cheat sheets:", err);
+            setError("An error occurred while fetching your cheat sheets.");
+        }
+    };
+    // Generate Previews for Cheat Sheets
+    // Trigger generatePreviews whenever cheatSheets are updated
+    useEffect(() => {
+        const generatePreviews = async () => {
+            const previewPromises = cheatSheets.map(async (sheet) => {
+                const container = document.createElement("div");
+                container.innerHTML = sheet.content;
+                container.style.width = "300px";
+                container.style.padding = "10px";
+                container.style.backgroundColor = "white";
+                document.body.appendChild(container);
+
+                const canvas = await html2canvas(container, { scale: 0.3 });
+                const imageUrl = canvas.toDataURL("image/png");
+                document.body.removeChild(container);
+
+                return { ...sheet, previewImage: imageUrl };
+            });
+
+            const results = await Promise.all(previewPromises);
+            setPreviews(results);
         };
 
+        if (cheatSheets.length > 0) {
+            generatePreviews();
+        }
+    }, [cheatSheets]);
+
+    useEffect(() => {
         fetchAccountInfo();
     }, []);
+
+    // Handle Carousel Navigation
+    const nextSlide = () => {
+        setCarouselIndex((prevIndex) =>
+            prevIndex === previews.length - 1 ? 0 : prevIndex + 1
+        );
+    };
+
+    const prevSlide = () => {
+        setCarouselIndex((prevIndex) =>
+            prevIndex === 0 ? previews.length - 1 : prevIndex - 1
+        );
+    };
 
     const handleCancelSubscription = async () => {
         setLoadingCancel(true);
@@ -236,39 +287,47 @@ const AccountPage = () => {
                                 )}
                             </div>
 
-                            {/* Created Cheat Sheets Section */}
                             <div
                                 style={{
-                                    padding: "20px",
-                                    border: "1px solid var(--border)",
-                                    borderRadius: "8px",
-                                    backgroundColor: "var(--box-bg)",
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", // Responsive grid
+                                    gap: "20px", // Spacing between grid items
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    textAlign: "center",
                                 }}
                             >
-                                <h3 style={{ marginBottom: "15px", color: "var(--primary)" }}>
-                                    Created Cheat Sheets
-                                </h3>
-                                {cheatSheets.length > 0 ? (
-                                    <ul style={{ listStyle: "none", padding: 0 }}>
-                                        {cheatSheets.map((sheet, index) => (
-                                            <li key={index} style={{ marginBottom: "10px" }}>
-                                                <a
-                                                    href={sheet.downloadLink}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    style={{
-                                                        color: "var(--primary)",
-                                                        textDecoration: "underline",
-                                                    }}
-                                                >
-                                                    {sheet.name}
-                                                </a>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p>No cheat sheets created yet.</p>
-                                )}
+                                {previews.map((sheet, index) => (
+                                    <div
+                                        key={index}
+                                        style={{
+                                            border: "1px solid #ddd",
+                                            borderRadius: "8px",
+                                            padding: "10px",
+                                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                            backgroundColor: "#fff",
+                                            cursor: "pointer",
+                                            transition: "transform 0.2s ease",
+                                        }}
+                                        onClick={() => setSelectedSheet(sheet)}
+                                    >
+                                        <img
+                                            src={sheet.previewImage}
+                                            alt="Cheat Sheet Preview"
+                                            style={{
+                                                width: "100%",
+                                                maxHeight: "100px",
+                                                objectFit: "contain",
+                                                borderRadius: "4px",
+                                            }}
+                                        />
+                                        <div style={{ marginTop: "8px", fontSize: "0.9rem" }}>
+                                            <strong>{sheet.school || "Unknown School"}</strong><br />
+                                            {sheet.classInfo && <span>Class: {sheet.classInfo}</span>}<br />
+                                            {sheet.testInfo && <span>Test: {sheet.testInfo}</span>}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}
@@ -279,6 +338,14 @@ const AccountPage = () => {
                 <SubscriptionUpgradeModal
                     isOpen={isUpgradeModalOpen}
                     onClose={() => setIsUpgradeModalOpen(false)}
+                />
+            )}
+
+            {/* Modal for Cheat Sheet */}
+            {selectedSheet && (
+                <SearchModal
+                    sheet={selectedSheet}
+                    onClose={() => setSelectedSheet(null)}
                 />
             )}
             {/* Footer */}

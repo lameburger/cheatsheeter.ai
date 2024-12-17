@@ -61,6 +61,8 @@ You are an expert cheat sheet designer tasked with creating a structured and vis
 7. Ensure the output is compact and suitable for quick studying.
 8. Do not include any additional text outside this JSON format (DO NOT INCLUDE ''' or the json tag).
 9. Use valid HTML <h3> tags for section titles, and ensure content is in plain text.
+10. If analyzing code, make sure that it is all in JSON readable format.
+
 
 ### Input:
 ${pages.join("\n\n")}
@@ -131,6 +133,7 @@ const summarizeSection = async (sectionTitle, sectionContent, wordLimit) => {
     3. Summarize the section in at most ${wordLimit*2} words.
     4. Ensure the output is plain text, formatted for HTML but without Markdown syntax.
     5. Don't include the phrase "Cheat sheet" anywhere.
+    6. If summarizing code, make sure that it is all in html readable format.
     `;
 
     try {

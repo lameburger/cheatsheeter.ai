@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import AccountPage from "./pages/AccountPage";
+import Demo from "./pages/Demo";
 import "./styles/global.css";
 import "./styles/theme.css";
 import { auth } from "./firebase";
@@ -68,6 +69,12 @@ function App() {
                     path="/account"
                     element={
                         <AccountPage user={user} isDarkMode={theme === "dark"} toggleTheme={toggleTheme} />
+                    }
+                />
+                <Route
+                    path="/demo"
+                    element={
+                        <Demo/>
                     }
                 />
             </Routes>

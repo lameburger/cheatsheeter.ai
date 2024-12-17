@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { getAuth } from "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
@@ -35,6 +36,8 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
     const [isPublic, setIsPublic] = useState(false); // Add this line to define isPublic state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState({});
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -141,35 +144,35 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
             setError("You need to be logged in to create a cheat sheet.");
             return;
         }
-    
+
         if (uploadedFiles.length === 0) {
             setError("Please upload a file.");
             return;
         }
-    
+
         const hasPdfFiles = uploadedFiles.some((file) => file.file?.type === "application/pdf");
         if (hasPdfFiles && Object.keys(selectedSlides).length === 0) {
             setError("Please select at least one slide.");
             return;
         }
-    
+
         if (!school?.trim() || !classInfo?.trim()) {
             setError("School and class information are required.");
             return;
         }
-    
+
         setIsLoading(true);
         setError(null);
-    
+
         const now = new Date();
         const today = now.toISOString().split("T")[0]; // YYYY-MM-DD format
-    
+
         try {
             const userDocRef = doc(db, "users", user.uid);
             const userSnapshot = await getDoc(userDocRef);
-    
+
             let userData;
-    
+
             // Initialize user document if it doesn't exist
             if (!userSnapshot.exists()) {
                 userData = {
@@ -185,7 +188,7 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 userData = userSnapshot.data();
                 const subscriptionType = userData?.subscriptionType || "freemium";
                 const totalCheatSheetsCreated = userData?.totalCheatSheetsCreated || 0;
-    
+
                 if (subscriptionType === "freemium" && totalCheatSheetsCreated >= 3) {
                     setModalContent({
                         title: "Limit Reached!",
@@ -197,7 +200,7 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                     setIsLoading(false);
                     return;
                 }
-    
+
                 // Update user cheat sheet count
                 await updateDoc(userDocRef, {
                     totalCheatSheetsCreated: increment(1),
@@ -205,13 +208,13 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                     [`cheatSheetsCreatedToday.${today}`]: increment(1),
                 });
             }
-    
+
             setLoadingProgress(30);
-    
+
             // Extract Text
             const rawTextEntries = uploadedFiles.filter((file) => typeof file === "string");
             const fileEntries = uploadedFiles.filter((file) => typeof file === "object" && file.file);
-    
+
             const extractedTextPromises = fileEntries.map(async (file) => {
                 if (file.file.type === "application/pdf" && selectedSlides[file.file.name]) {
                     const pages = await extractTextFromPdfByPage(file.file);
@@ -223,24 +226,24 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 }
                 return [];
             });
-    
+
             const allExtractedTextArrays = await Promise.all(extractedTextPromises);
             const allExtractedText = [...allExtractedTextArrays.flat(), ...rawTextEntries];
-    
+
             if (allExtractedText.length === 0) {
                 setError("No valid content to process.");
                 setIsLoading(false);
                 return;
             }
 
-    
+
             // Generate HTML content for the cheat sheet
             const { htmlContent } = await processFilesAndGenerateCheatSheet(uploadedFiles, selectedSlides, promptText);
-    
+
             if (!htmlContent) {
                 throw new Error("Failed to generate cheat sheet content.");
             }
-            
+
             setLoadingProgress(60);
 
             // Save Cheat Sheet to Firestore
@@ -248,12 +251,14 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 userId: user.uid,
                 content: htmlContent,
                 school: school.trim(),
+                school_lower: school.trim().toLowerCase(), // Lowercase version
                 classInfo: classInfo.trim(),
+                classInfo_lower: classInfo.trim().toLowerCase(), // Lowercase version
                 testInfo: testInfo.trim(),
+                testInfo_lower: testInfo.trim().toLowerCase(), // Lowercase version
                 isPublic,
                 createdAt: serverTimestamp(),
             });
-    
             setLoadingProgress(100);
 
             setError(null);
@@ -932,7 +937,7 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 </button>
                 {error && <p style={{ color: "red" }}>{error}</p>}
                 <p
-                    onClick={scrollToDemo}
+                    onClick={() => navigate("/demo")} // Navigate to the demo page
                     style={{
                         fontSize: "1rem",
                         fontWeight: "700",

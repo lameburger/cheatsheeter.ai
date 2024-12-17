@@ -46,19 +46,53 @@ const SearchBar = ({ user }) => {
             setResults([]);
             return;
         }
-
-        const cheatsheetsRef = collection(db, "cheatSheets");
-        const q = query(cheatsheetsRef, orderBy("classInfo"), startAt(input), endAt(input + "\uf8ff"));
-        const snapshot = await getDocs(q);
-
-        const searchResults = [];
-        for (const docSnap of snapshot.docs) {
-            const sheetData = { id: docSnap.id, ...docSnap.data() };
-            const previewImage = await generatePreviewImage(sheetData.content);
-            searchResults.push({ ...sheetData, previewImage });
+    
+        const lowercaseInput = input.toLowerCase(); // Convert input to lowercase
+    
+        try {
+            const cheatsheetsRef = collection(db, "cheatSheets");
+    
+            // Perform case-insensitive queries by using lowercase fields
+            const queries = [
+                query(
+                    cheatsheetsRef,
+                    orderBy("school_lower"),
+                    startAt(lowercaseInput),
+                    endAt(lowercaseInput + "\uf8ff")
+                ),
+                query(
+                    cheatsheetsRef,
+                    orderBy("classInfo_lower"),
+                    startAt(lowercaseInput),
+                    endAt(lowercaseInput + "\uf8ff")
+                ),
+                query(
+                    cheatsheetsRef,
+                    orderBy("testInfo_lower"),
+                    startAt(lowercaseInput),
+                    endAt(lowercaseInput + "\uf8ff")
+                ),
+            ];
+    
+            const searchResults = new Map();
+    
+            for (const q of queries) {
+                const snapshot = await getDocs(q);
+    
+                for (const docSnap of snapshot.docs) {
+                    const sheetData = { id: docSnap.id, ...docSnap.data() };
+    
+                    if (!searchResults.has(sheetData.id)) {
+                        const previewImage = await generatePreviewImage(sheetData.content);
+                        searchResults.set(sheetData.id, { ...sheetData, previewImage });
+                    }
+                }
+            }
+    
+            setResults(Array.from(searchResults.values()));
+        } catch (error) {
+            console.error("Error fetching cheat sheets:", error.message);
         }
-
-        setResults(searchResults);
     };
 
     useEffect(() => {
@@ -70,79 +104,101 @@ const SearchBar = ({ user }) => {
 
     return (
         <div style={{ position: "relative", width: "100%", maxWidth: "500px" }}>
-            <input
-                type="text"
-                placeholder="Search cheat sheets..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                style={{
-                    color: "black",
-                    width: "100%",
-                    padding: "10px",
-                    border: "1px solid var(--border)",
-                    borderRadius: "4px",
-                    fontFamily: "'JetBrains Mono', monospace",
-                }}
-            />
-
-            {results.length > 0 && (
+            {!user ? (
+                // Show a disabled search bar for non-logged-in users
                 <div
                     style={{
-                        color: "black",
-                        position: "absolute",
-                        top: "100%",
-                        left: "0",
-                        right: "0",
-                        backgroundColor: "#fff",
+                        color: "#aaa",
+                        backgroundColor: "#f0f0f0",
+                        textAlign: "center",
+                        padding: "10px",
                         border: "1px solid var(--border)",
                         borderRadius: "4px",
-                        zIndex: 1000,
-                        maxHeight: "300px",
-                        overflowY: "auto",
+                        cursor: "not-allowed",
+                        fontFamily: "'JetBrains Mono', monospace",
                     }}
                 >
-                    {results.map((sheet) => (
+                    Please log in to search cheat sheets
+                </div>
+            ) : (
+                <>
+                    {/* Search Bar */}
+                    <input
+                        type="text"
+                        placeholder="Search cheat sheets..."
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        style={{
+                            color: "black",
+                            width: "100%",
+                            padding: "10px",
+                            border: "1px solid var(--border)",
+                            borderRadius: "4px",
+                            fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                    />
+
+                    {/* Display Search Results Only If Input Is Not Empty */}
+                    {searchInput.trim() && results.length > 0 && (
                         <div
-                            key={sheet.id}
-                            onClick={() =>
-                                subscriptionType === "premium"
-                                    ? setSelectedSheet(sheet)
-                                    : alert("Upgrade to premium to access this cheat sheet.")
-                            }
                             style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "10px",
-                                padding: "10px",
-                                borderBottom: "1px solid var(--border)",
-                                cursor: "pointer",
+                                color: "black",
+                                position: "absolute",
+                                top: "100%",
+                                left: "0",
+                                right: "0",
+                                backgroundColor: "#fff",
+                                border: "1px solid var(--border)",
+                                borderRadius: "4px",
+                                zIndex: 1000,
+                                maxHeight: "300px",
+                                overflowY: "auto",
                             }}
                         >
-                            {/* Display the Preview Image */}
-                            {sheet.previewImage && (
-                                <img
-                                    src={sheet.previewImage}
-                                    alt="Preview"
+                            {results.map((sheet) => (
+                                <div
+                                    key={sheet.id}
+                                    onClick={() =>
+                                        subscriptionType === "premium"
+                                            ? setSelectedSheet(sheet)
+                                            : alert("Upgrade to premium to access this cheat sheet.")
+                                    }
                                     style={{
-                                        width: "60px",
-                                        height: "60px",
-                                        border: "1px solid #ccc",
-                                        borderRadius: "4px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "10px",
+                                        padding: "10px",
+                                        borderBottom: "1px solid var(--border)",
+                                        cursor: "pointer",
                                     }}
-                                />
-                            )}
-                            <div>
-                                <strong>
-                                    {sheet.school} - {sheet.classInfo}
-                                </strong>
-                                <p style={{ fontSize: "0.9rem", color: "#555" }}>
-                                    {sheet.testInfo}
-                                </p>
-                            </div>
-                            {subscriptionType !== "premium" && <FaLock color="red" />}
+                                >
+                                    {/* Display the Preview Image */}
+                                    {sheet.previewImage && (
+                                        <img
+                                            src={sheet.previewImage}
+                                            alt="Preview"
+                                            style={{
+                                                width: "60px",
+                                                height: "60px",
+                                                border: "1px solid #ccc",
+                                                borderRadius: "4px",
+                                            }}
+                                        />
+                                    )}
+                                    <div>
+                                        <strong>
+                                            {sheet.school} - {sheet.classInfo}
+                                        </strong>
+                                        <p style={{ fontSize: "0.9rem", color: "#555" }}>
+                                            {sheet.testInfo}
+                                        </p>
+                                    </div>
+                                    {subscriptionType !== "premium" && <FaLock color="red" />}
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    )}
+                </>
             )}
 
             {selectedSheet && (
