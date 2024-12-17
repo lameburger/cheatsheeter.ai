@@ -10,6 +10,7 @@ const AccountPage = () => {
     const [accountInfo, setAccountInfo] = useState(null);
     const [cheatSheets, setCheatSheets] = useState([]);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const [loadingCancel, setLoadingCancel] = useState(false);
     const [error, setError] = useState("");
 
     const auth = getAuth();
@@ -43,20 +44,33 @@ const AccountPage = () => {
         fetchAccountInfo();
     }, []);
 
+    const handleCancelSubscription = async () => {
+        setLoadingCancel(true);
+        try {
+            const response = await fetch("/api/createPortalLink", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: user.email }),
+            });
+
+            const data = await response.json();
+            if (response.ok && data.url) {
+                window.location.href = data.url; // Redirect to Stripe Customer Portal
+            } else {
+                console.error("Error:", data.error);
+                alert("Failed to open subscription management. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error cancelling subscription:", error);
+            alert("Something went wrong. Please try again later.");
+        } finally {
+            setLoadingCancel(false);
+        }
+    };
+
     if (error) {
         return (
-            <div
-                style={{
-                    height: "100vh",
-                    backgroundColor: "var(--bg)",
-                    color: "var(--text)",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    textAlign: "center",
-                }}
-            >
+            <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
                 <NavbarAccount />
                 <p>{error}</p>
             </div>
@@ -141,6 +155,7 @@ const AccountPage = () => {
                                 gap: "20px",
                             }}
                         >
+                            {/* User Information Section */}
                             <div
                                 style={{
                                     padding: "20px",
@@ -158,6 +173,7 @@ const AccountPage = () => {
                                 </p>
                             </div>
 
+                            {/* Subscription Status Section */}
                             <div
                                 style={{
                                     padding: "20px",
@@ -176,27 +192,49 @@ const AccountPage = () => {
                                     <strong>Cheat Sheets Created:</strong>{" "}
                                     {accountInfo?.cheatSheetsCreatedToday || 0}
                                 </p>
-                                <button
-                                    onClick={() => setIsUpgradeModalOpen(true)}
-                                    style={{
-                                        fontFamily: "'JetBrains Mono', monospace",
-                                        fontWeight: "bold",
-                                        marginTop: "10px",
-                                        padding: "10px 20px",
-                                        borderRadius: "8px",
-                                        fontSize: "1rem",
-                                        color: "var(--bg)",
-                                        backgroundColor: "var(--primary)",
-                                        border: "none",
-                                        cursor: "pointer",
-                                        boxShadow: "0 0 10px var(--primary), 0 0 20px var(--primary)",
-                                        animation: "glow 1.5s infinite alternate",
-                                    }}
-                                >
-                                    Upgrade Subscription
-                                </button>
+
+                                {accountInfo?.subscriptionType === "premium" ? (
+                                    <button
+                                        onClick={handleCancelSubscription}
+                                        style={{
+                                            fontFamily: "'JetBrains Mono', monospace",
+                                            fontWeight: "bold",
+                                            marginTop: "10px",
+                                            padding: "10px 20px",
+                                            borderRadius: "8px",
+                                            fontSize: "1rem",
+                                            color: "white",
+                                            backgroundColor: "red",
+                                            border: "none",
+                                            cursor: "pointer",
+                                            boxShadow: "0 0 10px red, 0 0 20px red",
+                                        }}
+                                    >
+                                        Cancel Subscription
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setIsUpgradeModalOpen(true)}
+                                        style={{
+                                            fontFamily: "'JetBrains Mono', monospace",
+                                            fontWeight: "bold",
+                                            marginTop: "10px",
+                                            padding: "10px 20px",
+                                            borderRadius: "8px",
+                                            fontSize: "1rem",
+                                            color: "var(--bg)",
+                                            backgroundColor: "var(--primary)",
+                                            border: "none",
+                                            cursor: "pointer",
+                                            boxShadow: "0 0 10px var(--primary), 0 0 20px var(--primary)",
+                                        }}
+                                    >
+                                        Upgrade Subscription
+                                    </button>
+                                )}
                             </div>
 
+                            {/* Created Cheat Sheets Section */}
                             <div
                                 style={{
                                     padding: "20px",
@@ -243,61 +281,61 @@ const AccountPage = () => {
             )}
             {/* Footer */}
             <footer
-                    style={{
-                        color: "var(--box-bg)",
-                        padding: "20px",
-                        textAlign: "center",
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: "0.9rem",
-                    }}
-                >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
-                        {/* Left Section */}
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <FaGlobe
-                                style={{
-                                    fontSize: "1.5rem",
-                                    color: "var(--primary)",
-                                }}
-                            />
-                            <span>© 2024 Cheatsheeter.ai</span>
-                        </div>
-
-                        {/* Right Section */}
-                        <div style={{ display: "flex", gap: "20px", marginTop: "10px" }}>
-                            <a
-                                href="/privacy"
-                                style={{
-                                    textDecoration: "none",
-                                    color: "var(--primary)",
-                                    fontWeight: "bold",
-                                }}
-                            >
-                                Privacy Policy
-                            </a>
-                            <a
-                                href="/terms"
-                                style={{
-                                    textDecoration: "none",
-                                    color: "var(--primary)",
-                                    fontWeight: "bold",
-                                }}
-                            >
-                                Terms of Service
-                            </a>
-                            <a
-                                href="/"
-                                style={{
-                                    textDecoration: "none",
-                                    color: "var(--primary)",
-                                    fontWeight: "bold",
-                                }}
-                            >
-                                Cheatsheeter
-                            </a>
-                        </div>
+                style={{
+                    color: "var(--box-bg)",
+                    padding: "20px",
+                    textAlign: "center",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: "0.9rem",
+                }}
+            >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+                    {/* Left Section */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <FaGlobe
+                            style={{
+                                fontSize: "1.5rem",
+                                color: "var(--primary)",
+                            }}
+                        />
+                        <span>© 2024 Cheatsheeter.ai</span>
                     </div>
-                </footer>
+
+                    {/* Right Section */}
+                    <div style={{ display: "flex", gap: "20px", marginTop: "10px" }}>
+                        <a
+                            href="/privacy"
+                            style={{
+                                textDecoration: "none",
+                                color: "var(--primary)",
+                                fontWeight: "bold",
+                            }}
+                        >
+                            Privacy Policy
+                        </a>
+                        <a
+                            href="/terms"
+                            style={{
+                                textDecoration: "none",
+                                color: "var(--primary)",
+                                fontWeight: "bold",
+                            }}
+                        >
+                            Terms of Service
+                        </a>
+                        <a
+                            href="/"
+                            style={{
+                                textDecoration: "none",
+                                color: "var(--primary)",
+                                fontWeight: "bold",
+                            }}
+                        >
+                            Cheatsheeter
+                        </a>
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 };
