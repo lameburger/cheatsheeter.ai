@@ -1,6 +1,5 @@
 import React from "react";
-
-
+import { FaGlobe } from "react-icons/fa";
 
 const Demo = () => {
     return (
@@ -20,10 +19,10 @@ const Demo = () => {
             {/* Header Section */}
             <header style={{ textAlign: "center", marginBottom: "50px" }}>
                 <h1 style={{ fontSize: "4rem", fontWeight: "bold", margin: 0 }}>
-                    Welcome to Cheatsheeter.ai
+                    Cheatsheeter.ai
                 </h1>
                 <p style={{ fontSize: "1.5rem", marginTop: "10px", opacity: 0.8 }}>
-                    A smarter way to generate and manage cheat sheets.
+                    A better way to study and review for exams
                 </p>
             </header>
 
@@ -41,9 +40,9 @@ const Demo = () => {
                 </h2>
                 <p style={{ fontSize: "1.2rem", lineHeight: "1.8", opacity: 0.9 }}>
                     Upload your files, select specific pages or slides, and let our
-                    intelligent backend process the content into beautifully formatted
-                    cheat sheets. Whether you're studying for exams or preparing for
-                    presentations, we've got you covered.
+                    intelligent backend process the content into densely formatted
+                    cheat sheets. Whether you're studying for exams or reviewinging
+                    the generator has you covered.
                 </p>
             </section>
 
@@ -60,10 +59,9 @@ const Demo = () => {
                     Why It's Better
                 </h2>
                 <p style={{ fontSize: "1.2rem", lineHeight: "1.8", opacity: 0.9 }}>
-                    Unlike traditional tools, Cheatsheeter.ai generates clean, concise,
-                    and visually appealing cheat sheets with minimal effort. Our unique
-                    backend leverages AI-powered summarization and PDF/image parsing to
-                    ensure that you get the best output, tailored to your needs.
+                    No more shitty AI generated review guides. Cheatsheeter takes any number
+                    of lecture slides, hand written material, and course material and summarizes
+                    it all into a single page.
                 </p>
             </section>
 
@@ -77,14 +75,13 @@ const Demo = () => {
                 }}
             >
                 <h2 style={{ fontSize: "2.5rem", marginBottom: "20px" }}>
-                    How the Backend Works
+                    What you get
                 </h2>
                 <p style={{ fontSize: "1.2rem", lineHeight: "1.8", opacity: 0.9 }}>
-                    Our backend utilizes state-of-the-art natural language processing
-                    (NLP) to analyze and summarize content. We seamlessly integrate with
-                    Firestore for data management and employ tools like{" "}
-                    <strong>html2canvas</strong> and <strong>jsPDF</strong> to create
-                    high-quality cheat sheet previews and downloadable files.
+                    The freemium version of the site offers three freely generated cheat
+                    sheets. Yes, this number is low, but so is my wallet so bear with me.
+                    API costs are high and to maintain this site it isn't cheap. You can 
+                    get ulimited (yes, unlimited) generations of cheatsheets if you subscribe.
                 </p>
             </section>
 
@@ -137,40 +134,6 @@ const Demo = () => {
                             }}
                         />
                         <span>© 2024 Cheatsheeter.ai</span>
-                    </div>
-
-                    {/* Right Section */}
-                    <div style={{ display: "flex", gap: "20px", marginTop: "10px" }}>
-                        <a
-                            href="/privacy"
-                            style={{
-                                textDecoration: "none",
-                                color: "var(--primary)",
-                                fontWeight: "bold",
-                            }}
-                        >
-                            Privacy Policy
-                        </a>
-                        <a
-                            href="/terms"
-                            style={{
-                                textDecoration: "none",
-                                color: "var(--primary)",
-                                fontWeight: "bold",
-                            }}
-                        >
-                            Terms of Service
-                        </a>
-                        <a
-                            href="/"
-                            style={{
-                                textDecoration: "none",
-                                color: "var(--primary)",
-                                fontWeight: "bold",
-                            }}
-                        >
-                            Cheatsheeter
-                        </a>
                     </div>
                 </div>
             </footer>

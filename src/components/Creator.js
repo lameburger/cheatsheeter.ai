@@ -7,14 +7,11 @@ import { FaCloudUploadAlt } from "react-icons/fa";
 import html2pdf from "html2pdf.js";
 import { extractTextFromPdfByPage } from "../services/pdfParser";
 import * as pdfjsLib from "pdfjs-dist/webpack";
-import { getUserDocument, updateUserCheatSheetData } from "../services/userService";
 import { processFilesAndGenerateCheatSheet } from "../services/cheatSheetService";
 import extractTextFromImage from '../services/googleVision';
 import LoadingBar from "./LoadingBar";
 import { addDoc, collection, doc, getDoc, updateDoc, setDoc, increment, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
-import { uploadCheatSheetToUserBucket, uploadCheatSheetToGlobalBucket } from "../services/userService";
-import uploadCheatSheet from "../services/uploadCheatSheet";
 
 
 const Creator = ({ isDarkMode, scrollToDemo }) => {
