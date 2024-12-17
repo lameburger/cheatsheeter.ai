@@ -1,36 +1,42 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { auth } from "../firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 
-const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
+const SubscriptionUpgradeModal = ({ isOpen, onClose }) => {
     const [loading, setLoading] = useState(false);
     const user = auth.currentUser;
 
-    const handleUpgrade = async () => {
+    useEffect(() => {
+        const checkSubscriptionStatus = async () => {
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists() && userDoc.data().subscriptionType === "premium") {
+                        alert("Your subscription is already upgraded to Premium!");
+                        onClose();
+                    }
+                } catch (error) {
+                    console.error("Error checking subscription status in Firebase:", error);
+                    alert("Failed to verify subscription status. Please contact support.");
+                }
+            }
+        };
+
+        checkSubscriptionStatus();
+    }, [user, onClose]);
+
+    const handleUpgrade = () => {
         if (!user) {
             alert("You need to be signed in to upgrade.");
             return;
         }
-
-        setLoading(true);
-        try {
-            const response = await fetch("/create-checkout-session", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId: user.uid }),
-            });
-
-            const { sessionId } = await response.json();
-
-            // Redirect to Stripe Checkout
-            window.location.href = `https://checkout.stripe.com/pay/${sessionId}`;
-        } catch (error) {
-            console.error("Error creating Stripe Checkout session:", error);
-            alert("Failed to start Stripe Checkout. Please try again.");
-        } finally {
-            setLoading(false);
-        }
+    
+        // Open Stripe Payment Link in a new tab
+        const stripePaymentLink = "https://buy.stripe.com/28o3dybZJ1tkaS45kl";
+        window.open(stripePaymentLink, "_blank", "noopener,noreferrer");
     };
 
     if (!isOpen) return null;
@@ -81,10 +87,11 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                         color: "var(--bg)",
                         marginBottom: "30px",
                         lineHeight: "1.6",
-                        fontWeight: "bold"
+                        fontWeight: "bold",
                     }}
                 >
-                    The site is ran by one dude who is a broke college student. API costs are high and wallets are low, subscribe to support.
+                    Support the development of this platform by upgrading to Premium.
+                    Enjoy unlimited cheat sheet creation and access to exclusive resources!
                 </p>
 
                 {/* Features Section */}
@@ -102,7 +109,7 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                             border: "3px solid var(--border)",
                             borderRadius: "8px",
                             backgroundColor: "var(--box-bg)",
-                            fontWeight: "bold"
+                            fontWeight: "bold",
                         }}
                     >
                         <h3 style={{ marginBottom: "10px", color: "var(--primary)" }}>
@@ -118,14 +125,14 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                             border: "3px solid var(--border)",
                             borderRadius: "8px",
                             backgroundColor: "var(--box-bg)",
-                            fontWeight: "bold"
+                            fontWeight: "bold",
                         }}
                     >
                         <h3 style={{ marginBottom: "10px", color: "var(--primary)" }}>
-                            Sheet Database
+                            Premium Resources
                         </h3>
                         <p style={{ fontSize: "1rem", color: "var(--bg)" }}>
-                            Access a curated library of pre-made, cheat sheet from universities and institutions.
+                            Access a curated library of pre-made resources and templates.
                         </p>
                     </div>
                     <div
@@ -134,7 +141,7 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                             border: "3px solid var(--border)",
                             borderRadius: "8px",
                             backgroundColor: "var(--box-bg)",
-                            fontWeight: "bold"
+                            fontWeight: "bold",
                         }}
                     >
                         <h3 style={{ marginBottom: "10px", color: "var(--primary)" }}>
@@ -152,7 +159,7 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose, onUpgrade }) => {
                         padding: "20px",
                         borderRadius: "8px",
                         backgroundColor: "var(--box-bg)",
-                        border: "4px solid var(--bg)",
+                        border: "3px solid var(--bg)",
                         marginBottom: "30px",
                         fontSize: "1.5rem",
                         fontWeight: "bold",
