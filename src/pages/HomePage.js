@@ -133,7 +133,7 @@ const HomePage = () => {
                         {/* Right Section */}
                         <div style={{ display: "flex", gap: "20px", marginTop: "10px" }}>
                             <a
-                                href="/privacy"
+                                href="/privacyPolicy"
                                 style={{
                                     textDecoration: "none",
                                     color: "var(--primary)",

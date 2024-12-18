@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import AccountPage from "./pages/AccountPage";
 import Demo from "./pages/Demo";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
 import "./styles/global.css";
 import "./styles/theme.css";
 import { auth } from "./firebase";
@@ -75,6 +77,18 @@ function App() {
                     path="/demo"
                     element={
                         <Demo/>
+                    }
+                />
+                <Route
+                    path="/privacyPolicy"
+                    element={
+                        <PrivacyPolicy/>
+                    }
+                />
+                <Route
+                    path="/terms"
+                    element={
+                        <Terms/>
                     }
                 />
             </Routes>
