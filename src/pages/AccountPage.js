@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";
 import NavbarAccount from "../components/NavbarAccount";
 import SubscriptionUpgradeModal from "../components/SubscriptionUpgradeModal";
 import SearchModal from "../components/SearchModal";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, getDoc, doc } from "firebase/firestore";
 import html2canvas from "html2canvas";
 import { FaGlobe, FaChevronLeft, FaChevronRight, FaLock } from "react-icons/fa";
 
@@ -28,6 +28,18 @@ const AccountPage = () => {
             if (currentUser) {
                 setUser(currentUser);
 
+                // Fetch account info from users collection
+                const userDocRef = doc(db, "users", currentUser.uid);
+                const userSnapshot = await getDoc(userDocRef);
+
+                if (userSnapshot.exists()) {
+                    const userData = userSnapshot.data();
+                    setAccountInfo(userData); // Set account information
+                } else {
+                    setAccountInfo(null);
+                    setError("No account information found for this user.");
+                }
+
                 // Fetch cheat sheets where userId matches currentUser.uid
                 const cheatSheetsRef = collection(db, "cheatSheets");
                 const q = query(cheatSheetsRef, where("userId", "==", currentUser.uid));
@@ -46,12 +58,11 @@ const AccountPage = () => {
                 setError("You must be logged in to view account information.");
             }
         } catch (err) {
-            console.error("Error fetching cheat sheets:", err);
-            setError("An error occurred while fetching your cheat sheets.");
+            console.error("Error fetching account information:", err);
+            setError("An error occurred while fetching account information.");
         }
     };
-    // Generate Previews for Cheat Sheets
-    // Trigger generatePreviews whenever cheatSheets are updated
+
     useEffect(() => {
         const generatePreviews = async () => {
             const previewPromises = cheatSheets.map(async (sheet) => {
@@ -240,10 +251,7 @@ const AccountPage = () => {
                                     <strong>Status:</strong> {accountInfo?.subscriptionType || "Unknown"}
                                 </p>
                                 <p>
-                                    <strong>Cheat Sheets Created:</strong>{" "}
-                                    {typeof accountInfo?.cheatSheetsCreatedToday === "object"
-                                        ? Object.values(accountInfo.cheatSheetsCreatedToday).reduce((sum, count) => sum + count, 0)
-                                        : 0}
+                                    <strong>Cheat Sheets Created:</strong> {cheatSheets.length}
                                 </p>
 
                                 {accountInfo?.subscriptionType === "premium" ? (

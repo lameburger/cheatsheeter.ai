@@ -42,7 +42,7 @@ const SubscriptionUpgradeModal = ({ isOpen, onClose }) => {
         }
 
         console.log("Redirecting user to Stripe Payment Link...");
-        const stripePaymentLink = "https://buy.stripe.com/28o3dybZJ1tkaS45kl";
+        const stripePaymentLink = "https://buy.stripe.com/eVa3dy6Fpfkaf8kcMM";
         window.open(stripePaymentLink, "_blank", "noopener,noreferrer");
     };
 

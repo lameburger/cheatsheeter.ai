@@ -191,7 +191,7 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                         title: "Limit Reached!",
                         message: "Freemium users can only create up to 3 cheat sheets. Upgrade for unlimited access.",
                         buttonText: "Upgrade to Premium",
-                        buttonLink: "https://buy.stripe.com/28o3dybZJ1tkaS45kl",
+                        buttonLink: "https://buy.stripe.com/eVa3dy6Fpfkaf8kcMM",
                     });
                     setIsModalOpen(true);
                     setIsLoading(false);
