@@ -186,7 +186,7 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
                 const subscriptionType = userData?.subscriptionType || "freemium";
                 const totalCheatSheetsCreated = userData?.totalCheatSheetsCreated || 0;
 
-                if (subscriptionType === "freemium" && totalCheatSheetsCreated >= 3) {
+                if (subscriptionType === "freemium" && totalCheatSheetsCreated >= 7) {
                     setModalContent({
                         title: "Limit Reached!",
                         message: "Freemium users can only create up to 3 cheat sheets. Upgrade for unlimited access.",
@@ -399,6 +399,7 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
             setCurrentPreviewFile(null);
         }
     };
+    
 
     const colors = {
         light: {

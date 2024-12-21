@@ -42,7 +42,7 @@ const calculateDynamicLayout = (totalTextLength) => {
     const numColumns = 6;
 
     // Max lines per column adjusted for full height utilization
-    const maxLinesPerColumn = Math.floor((PAGE_HEIGHT - padding * 2) / lineHeight) * 3;
+    const maxLinesPerColumn = Math.floor((PAGE_HEIGHT - padding * 2) / lineHeight) * 2.8;
 
     return { numColumns, columnWidth, lineHeight, fontSize, maxLinesPerColumn };
 };
@@ -60,8 +60,7 @@ You are an expert cheat sheet designer tasked with creating a structured and vis
 6. Do not include any additional text outside this JSON format (DO NOT INCLUDE ''' or the json tag).
 7. Use valid HTML <h3> tags for section titles, and ensure content is in plain text.
 8. If analyzing code, make sure that it is all in JSON readable format.
-9. Make sure the sections are not redundant and have their own topics.
-
+9. Give each section a list of key points. Make sure none of these are redundant.
 
 ### Input:
 ${pages.join("\n\n")}
@@ -129,10 +128,14 @@ const summarizeSection = async (sectionTitle, sectionContent, wordLimit) => {
     ### Output:
     Provide a dense summary in plain text format:
     1. Use <b> tags for key concepts AND italics and bold for formulas (e.g., "<b>Important</b>").
-    2. Use structured plain text bullet points or numbered lists for organization.
+    2. Use structured plain text for organization.
     3. Ensure the output is plain text, formatted for HTML but without Markdown syntax.
     4. Don't include the phrase "Cheat sheet" anywhere.
     5. ONLY OUTPUT IN READABLE HTML CONTENT.
+    6. Don't use bulleted points.
+    7. High light sections and color useful definitions.
+    8. Font sizes are only 8px.
+    9. Use at least 100 words per section.
     `;
 
     try {

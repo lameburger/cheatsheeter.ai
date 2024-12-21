@@ -78,7 +78,7 @@ const Demo = () => {
                     What you get
                 </h2>
                 <p style={{ fontSize: "1.2rem", lineHeight: "1.8", opacity: 0.9 }}>
-                    The freemium version of the site offers three freely generated cheat
+                    The freemium version of the site offers seven freely generated cheat
                     sheets. Yes, this number is low, but so is my wallet so bear with me.
                     API costs are high and to maintain this site it isn't cheap. You can
                     get ulimited (yes, unlimited) generations of cheatsheets if you subscribe.
