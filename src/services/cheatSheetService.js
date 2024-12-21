@@ -54,14 +54,13 @@ You are an expert cheat sheet designer tasked with creating a structured and vis
 ### Task:
 1. Analyze the content.
 2. Identify key sections, topics, and structure for the cheat sheet (be sure to keep original content from what you were given).
-3. Recommend a word limit for each section to ensure all sections fit on the page. 
-4. The total word limit for all sections combined must not exceed ${maxWordsPerPage}.
-5. The person creating the cheatsheet would like to ensure that the cheat sheet mentions these topics: ${promptText}
-6. If there are equations or formulas be sure to include them with each section.
-7. Ensure the output is compact and suitable for quick studying.
-8. Do not include any additional text outside this JSON format (DO NOT INCLUDE ''' or the json tag).
-9. Use valid HTML <h3> tags for section titles, and ensure content is in plain text.
-10. If analyzing code, make sure that it is all in JSON readable format.
+3. The person creating the cheatsheet would like to ensure that the cheat sheet mentions these topics: ${promptText}
+4. If there are equations or formulas be sure to include them with each section.
+5. Ensure the output is compact and suitable for quick studying.
+6. Do not include any additional text outside this JSON format (DO NOT INCLUDE ''' or the json tag).
+7. Use valid HTML <h3> tags for section titles, and ensure content is in plain text.
+8. If analyzing code, make sure that it is all in JSON readable format.
+9. Make sure the sections are not redundant and have their own topics.
 
 
 ### Input:
