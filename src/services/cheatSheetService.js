@@ -133,7 +133,7 @@ const summarizeSection = async (sectionTitle, sectionContent, wordLimit) => {
     2. Use structured plain text bullet points or numbered lists for organization.
     3. Ensure the output is plain text, formatted for HTML but without Markdown syntax.
     4. Don't include the phrase "Cheat sheet" anywhere.
-    5. If summarizing code, make sure that it is all in html readable format.
+    5. ONLY OUTPUT IN READABLE HTML CONTENT.
     `;
 
     try {
