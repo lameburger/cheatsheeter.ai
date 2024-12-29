@@ -89,11 +89,6 @@ Provide the cheat sheet structure with word limits in the following JSON format:
             messages: [{ role: "user", content: prompt }],
         });
 
-        console.log("Token Usage (Analyze Pages):");
-        console.log(`  Input Tokens: ${response.usage.prompt_tokens}`);
-        console.log(`  Output Tokens: ${response.usage.completion_tokens}`);
-        console.log(`  Total Tokens: ${response.usage.total_tokens}`);
-
         const output = response.choices[0].message?.content.trim();
 
         try {
@@ -110,7 +105,6 @@ Provide the cheat sheet structure with word limits in the following JSON format:
 };
 
 const summarizeSection = async (sectionTitle, sectionContent, wordLimit) => {
-    console.log("word limit: " + wordLimit);
     const cacheKey = `${sectionTitle}:${sectionContent}:${wordLimit}`;
     if (cache.has(cacheKey)) {
         return cache.get(cacheKey);
@@ -143,11 +137,6 @@ const summarizeSection = async (sectionTitle, sectionContent, wordLimit) => {
             model: "gpt-4o-mini",
             messages: [{ role: "user", content: prompt }],
         });
-
-        console.log(`Token Usage (Summarize Section: ${sectionTitle}):`);
-        console.log(`  Input Tokens: ${response.usage.prompt_tokens}`);
-        console.log(`  Output Tokens: ${response.usage.completion_tokens}`);
-        console.log(`  Total Tokens: ${response.usage.total_tokens}`);
 
         const summary = response.choices[0].message?.content.trim();
         cache.set(cacheKey, summary);
@@ -397,7 +386,6 @@ const processFilesAndGenerateCheatSheet = async (uploadedFiles, selectedVisuals 
         // Summarize sections in parallel
         console.log("Summarizing sections...");
         const contentSections = await processSectionsInParallel(structure.sections, pages);
-        console.log("Summarized sections:", contentSections);
 
         if (!contentSections || contentSections.length === 0) {
             throw new Error("Failed to summarize sections. No content available.");

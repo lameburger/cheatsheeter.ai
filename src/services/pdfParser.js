@@ -1,7 +1,6 @@
 import * as pdfjsLib from "pdfjs-dist/webpack";
 
 export const renderPdfToImages = async (file) => {
-    console.log("Rendering PDF pages to images:", file.name);
     const reader = new FileReader();
     return new Promise((resolve, reject) => {
         reader.onload = async (e) => {
@@ -37,7 +36,6 @@ export const renderPdfToImages = async (file) => {
 };
 
 export const extractTextFromPdfByPage = async (file) => {
-    console.log("Extracting text from PDF by page:", file.name);
     const reader = new FileReader();
     return new Promise((resolve, reject) => {
         reader.onload = async (e) => {

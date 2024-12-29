@@ -49,7 +49,6 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
     }, []);
 
     useEffect(() => {
-        console.log("Preview Pages Updated:", previewPages);
     }, [previewPages]);
 
     const handleSlideSelection = (file, slideIndex) => {
@@ -362,7 +361,6 @@ const Creator = ({ isDarkMode, scrollToDemo }) => {
             url: URL.createObjectURL(file),
         }));
 
-        console.log("Mapped files:", mappedFiles); // Debugging log
         setUploadedFiles((prev) => [...prev, ...mappedFiles]);
     };
 

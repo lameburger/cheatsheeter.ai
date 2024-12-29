@@ -18,7 +18,6 @@ const uploadTestJson = async (userId, cheatSheetId, jsonData, onProgress) => {
                 "state_changed",
                 (snapshot) => {
                     const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    console.log(`Upload is ${progress}% done`);
                     if (onProgress) onProgress(progress);
                 },
                 (error) => {
@@ -27,7 +26,6 @@ const uploadTestJson = async (userId, cheatSheetId, jsonData, onProgress) => {
                 },
                 async () => {
                     const downloadURL = await getDownloadURL(storageRef);
-                    console.log("Test JSON uploaded successfully:", downloadURL);
                     resolve(downloadURL);
                 }
             );
@@ -49,10 +47,8 @@ const handleTestJsonUpload = async () => {
         };
 
         const downloadURL = await uploadTestJson(userId, cheatSheetId, testData, (progress) => {
-            console.log(`Upload progress: ${progress}%`);
         });
 
-        console.log("Test JSON uploaded successfully. Download URL:", downloadURL);
         alert(`Test JSON uploaded successfully: ${downloadURL}`);
     } catch (error) {
         console.error("Error uploading test JSON:", error.message);

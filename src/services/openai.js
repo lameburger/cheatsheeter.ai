@@ -46,11 +46,6 @@ Generate a dense, small, detailed explanation of topics. Ensure the output:
 
         let summary = response.choices[0].message?.content.trim() || "";
 
-        console.log("Token Usage:");
-        console.log(`  Input Tokens: ${response.usage?.prompt_tokens}`);
-        console.log(`  Output Tokens: ${response.usage?.completion_tokens}`);
-        console.log(`  Total Tokens: ${response.usage?.total_tokens}`);
-
         return summary;
     } catch (error) {
         console.error("Error summarizing text:", error.response?.data || error.message);

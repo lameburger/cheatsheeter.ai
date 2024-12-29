@@ -20,9 +20,7 @@ export const createUserDocument = async (user) => {
             lastCheatSheetCreated: null,
             createdAt: serverTimestamp(),
         });
-        console.log("✅ User document initialized");
     } else {
-        console.log("⚠️ User document already exists");
     }
 };
 
@@ -83,7 +81,6 @@ export const uploadCheatSheetToUserBucket = async (user, cheatSheetHtml, fileNam
     try {
         const cheatSheetBlob = new Blob([cheatSheetHtml], { type: "text/html" });
         await uploadBytes(userBucketRef, cheatSheetBlob);
-        console.log(`Cheat sheet uploaded to user bucket: users/${user.uid}/${fileName}.html`);
     } catch (error) {
         console.error("Error uploading cheat sheet:", error);
         throw new Error("Failed to upload cheat sheet.");
@@ -97,7 +94,6 @@ export const uploadCheatSheetToGlobalBucket = async (cheatSheetHtml, metadata, f
     try {
         const cheatSheetBlob = new Blob([cheatSheetHtml], { type: "text/html" });
         await uploadBytes(globalBucketRef, cheatSheetBlob);
-        console.log(`Cheat sheet uploaded to global bucket: global-cheatsheets/${fileName}.html`);
     } catch (error) {
         console.error("Error uploading to global bucket:", error);
         throw new Error("Failed to upload cheat sheet to global bucket.");

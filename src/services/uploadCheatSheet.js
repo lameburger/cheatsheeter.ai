@@ -11,7 +11,6 @@ const uploadCheatSheet = async (userId, cheatSheetId, cheatSheetFile, onProgress
                 "state_changed",
                 (snapshot) => {
                     const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    console.log(`Upload is ${progress}% done`);
                     if (onProgress) onProgress(progress);
                 },
                 (error) => {
@@ -21,7 +20,6 @@ const uploadCheatSheet = async (userId, cheatSheetId, cheatSheetFile, onProgress
                 async () => {
                     try {
                         const downloadURL = await getDownloadURL(storageRef);
-                        console.log("CheatSheet uploaded successfully:", downloadURL);
                         resolve(downloadURL);
                     } catch (error) {
                         console.error("Error getting download URL:", error);

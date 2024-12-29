@@ -11,7 +11,6 @@ const SignUp = ({ onClose }) => { // Add onClose as a prop
     const handleGoogleSignIn = async () => {
         try {
             const result = await signInWithPopup(auth, googleProvider);
-            console.log("Google User:", result.user);
             onClose(); // Close the modal after success
         } catch (error) {
             setError(error.message);
@@ -21,8 +20,6 @@ const SignUp = ({ onClose }) => { // Add onClose as a prop
     // GitHub Sign-In
     const handleGithubSignIn = async () => {
         try {
-            const result = await signInWithPopup(auth, githubProvider);
-            console.log("GitHub User:", result.user);
             onClose(); // Close the modal after success
         } catch (error) {
             setError(error.message);
@@ -32,8 +29,6 @@ const SignUp = ({ onClose }) => { // Add onClose as a prop
     // Email/Password Sign-Up
     const handleEmailSignUp = async () => {
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            console.log("Email User:", userCredential.user);
             onClose(); // Close the modal after success
         } catch (error) {
             setError(error.message);
